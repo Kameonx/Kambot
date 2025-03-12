@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kambot</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: #1a1a1a;
+            color: white;
+            font-family: Arial, sans-serif;
+        }
+        
+        .container {
+            padding: 40px;
+            background: #2d2d2d;
+            border-radius: 15px;
+            max-width: 800px;
+            width: 100%;
+            box-shadow: 0 0 30px rgba(0,0,0,0.3);
+            display: flex;
+            flex-direction: column;
+            height: 80vh;
+        }
+        
+        .chat-header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        
+        .chat-history {
+            flex-grow: 1;
+            overflow-y: auto;
+            margin-bottom: 20px;
+            background: #353535;
+            padding: 15px;
+            border-radius: 10px;
+            position: relative;
+        }
+        
+        .message {
+            margin-bottom: 15px;
+            padding: 10px;
+            border-radius: 8px;
+            position: relative;
+        }
+        
+        .user-message {
+            background: #2a4365;
+            align-self: flex-end;
+        }
+        
+        .bot-message {
+            background: #404040;
+        }
+        
+        .input-area {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        textarea {
+            padding: 12px;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            background: #353535;
+            color: white;
+            resize: none;
+            min-height: 50px;
+            max-height: 120px;
+            line-height: 1.4;
+            font-family: inherit;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        
+        .buttons-row {
+            display: flex;
+            justify-content: space-between;
+        }
+        
+        button {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            white-space: nowrap;
+            min-width: 80px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .send-button {
+            background: #50fa7b;
+            color: #1a1a1a;
+            transition: all 0.3s ease;
+        }
+        
+        .loading {
+            background: #2c8c44;
+            color: rgba(255, 255, 255, 0.8);
+            pointer-events: none;
+        }
+        
+        .spinner {
+            display: none;
+            vertical-align: middle;
+            margin-left: 5px;
+            width: 18px;
+            height: 18px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s ease-in-out infinite;
+        }
+        
+        .loading .spinner {
+            display: inline-block;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .message-role {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        
+        .message-content {
+            white-space: pre-wrap;
+        }
+        
+        #thinking-indicator {
+            display: none;
+            margin-top: 10px;
+            text-align: center;
+            font-style: italic;
+            color: #888;
+        }
+        
+        .dot-typing {
+          position: relative;
+          display: inline-block;
+          margin-left: 4px;
+        }
+        
+        .dot-typing::after {
+          content: "";
+          display: inline-block;
+          width: 4px;
+          height: 4px;
+          border-radius: 50%;
+          animation: dot-typing 1.5s infinite linear;
+          background-color: #888;
+          margin: 0 2px;
+        }
+        
+        @keyframes dot-typing {
+          0% { box-shadow: 4px 0 0 0 #888, 12px 0 0 0 #888; }
+          25% { box-shadow: 4px 0 0 0 transparent, 12px 0 0 0 #888; }
+          50% { box-shadow: 4px 0 0 0 #888, 12px 0 0 0 transparent; }
+          75% { box-shadow: 4px 0 0 0 transparent, 12px 0 0 0 transparent; }
+          100% { box-shadow: 4px 0 0 0 #888, 12px 0 0 0 #888; }
+        }
+        
+        .clear-button {
+            background: #ff5555;
+            color: white;
+            padding: 12px 20px;
+            font-size: 16px;
+        }
+        
+        .copy-chat-button {
+            background: #007bff;  /* Blue background */
+            border: none;
+            color: white;
+            font-size: 16px;
+            cursor: pointer;
+            padding: 12px 20px;
+            border-radius: 5px;
+        }
+        
+        .left-buttons {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .typing {
+            display: inline-block;
+            animation: blink 0.7s infinite;
+        }
+        
+        @keyframes blink {
+            0% { opacity: 1; }
+            50% { opacity: 0; }
+            100% { opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="chat-header">
+            <h1>Kambot</h1>
+        </div>
+        
+        <div class="chat-history" id="chat-history">
+            {% if chat_history %}
+                {% for message in chat_history %}
+                    <div class="message {% if message.role == 'user' %}user-message{% else %}bot-message{% endif %}">
+                        <div class="message-role">{{ "You" if message.role == 'user' else "Kambot" }}</div>
+                        <div class="message-content">{{ message.content }}</div>
+                    </div>
+                {% endfor %}
+            {% else %}
+                <div class="message bot-message">
+                    <div class="message-role">Kambot</div>
+                    <div class="message-content">Hey there! I'm Kambot 😼. What's on your mind?</div>
+                </div>
+            {% endif %}
+            <div id="thinking-indicator">
+                Kambot is thinking<span class="dot-typing"></span>
+            </div>
+        </div>
+        
+        <form method="POST" class="input-area" id="chat-form">
+            <textarea name="user_query" placeholder="Type your message here..." required autofocus rows="1"></textarea>
+            <div class="buttons-row">
+                <div class="left-buttons">
+                    <button type="button" id="copy-chat-button" class="copy-chat-button">
+                        Copy Chat
+                    </button>
+                    <button type="button" class="clear-button" id="clear-button">Clear</button>
+                </div>
+                <button type="submit" class="send-button" id="send-button">
+                    <span id="button-text">Send</span>
+                    <span class="spinner" id="button-spinner"></span>
+                </button>
+            </div>
+        </form>
+    </div>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const chatHistory = document.querySelector('.chat-history');
+            const chatForm = document.getElementById('chat-form');
+            const textarea = document.querySelector('textarea');
+            const button = document.getElementById('send-button');
+            const buttonText = document.getElementById('button-text');
+            const spinner = document.getElementById('button-spinner');
+            const thinkingIndicator = document.getElementById('thinking-indicator');
+            const clearButton = document.getElementById('clear-button');
+            const copyChatButton = document.getElementById('copy-chat-button');
+            
+            // Copy full chat functionality
+            copyChatButton.addEventListener('click', function() {
+                const messages = document.querySelectorAll('.message');
+                let fullChatText = '';
+                
+                messages.forEach(message => {
+                    const role = message.querySelector('.message-role').textContent;
+                    const content = message.querySelector('.message-content').textContent;
+                    fullChatText += `${role}:\n${content}\n\n`;
+                });
+                
+                copyToClipboard(fullChatText.trim());
+            });
+            
+            // Clear chat button functionality
+            clearButton.addEventListener('click', function() {
+                if (confirm('Are you sure you want to clear the chat?')) {
+                    fetch('/clear', {
+                        method: 'POST',
+                    }).then(() => {
+                        window.location.reload();
+                    });
+                }
+            });
+            
+            // Copy text to clipboard
+            function copyToClipboard(text) {
+                navigator.clipboard.writeText(text).then(function() {
+                    console.log('Text copied to clipboard');
+                }).catch(function(err) {
+                    console.error('Could not copy text: ', err);
+                });
+            }
+            
+            // Auto-scroll to bottom of chat history
+            function scrollToBottom() {
+                chatHistory.scrollTop = chatHistory.scrollHeight;
+            }
+            
+            scrollToBottom();
+            
+            // Auto-resize textarea based on content
+            textarea.addEventListener('input', function() {
+                this.style.height = 'auto';
+                this.style.height = (this.scrollHeight) + 'px';
+            });
+            
+            // Handle Enter key to submit (Shift+Enter for new line)
+            textarea.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    if (textarea.value.trim() !== '') {
+                        submitForm();
+                    }
+                }
+            });
+            
+            // Handle form submission
+            chatForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                if (textarea.value.trim() !== '') {
+                    submitForm();
+                }
+            });
+            
+            // Submit form via AJAX with streaming support
+            function submitForm() {
+                // Show loading state
+                button.disabled = true;
+                button.classList.add('loading');
+                buttonText.textContent = 'Sending...';
+                spinner.style.display = 'inline-block';
+                
+                // Get the user message
+                const userMessage = textarea.value;
+                
+                // Add user message to chat history
+                addMessageToChat('user', userMessage);
+                
+                // Clear the textarea
+                textarea.value = '';
+                textarea.style.height = 'auto';
+                
+                // Create a placeholder for the bot response with cursor
+                const botMessageDiv = document.createElement('div');
+                botMessageDiv.className = 'message bot-message';
+                
+                const roleDiv = document.createElement('div');
+                roleDiv.className = 'message-role';
+                roleDiv.textContent = 'Kambot';
+                
+                const contentDiv = document.createElement('div');
+                contentDiv.className = 'message-content';
+                contentDiv.innerHTML = '<span class="typing">|</span>'; // Blinking cursor
+                
+                botMessageDiv.appendChild(roleDiv);
+                botMessageDiv.appendChild(contentDiv);
+                
+                // Add the placeholder message before the thinking indicator
+                chatHistory.insertBefore(botMessageDiv, thinkingIndicator);
+                
+                // Hide the thinking indicator since we're showing live typing
+                thinkingIndicator.style.display = 'none';
+                
+                scrollToBottom();
+                
+                // First, send the initial POST request
+                fetch('/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    body: 'user_query=' + encodeURIComponent(userMessage)
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.streaming) {
+                        // Open an EventSource connection to get streaming data
+                        return fetch('/stream', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({ message_id: data.message_id })
+                        }).then(response => {
+                            const reader = response.body.getReader();
+                            const decoder = new TextDecoder();
+                            
+                            // Function to process streaming data
+                            function processStream() {
+                                return reader.read().then(({ done, value }) => {
+                                    if (done) {
+                                        // Remove the cursor more cleanly by setting only the text content
+                                        const finalText = contentDiv.textContent.replace('|', '');
+                                        contentDiv.textContent = finalText;
+                                        resetButtonState();
+                                        return;
+                                    }
+                                    
+                                    const chunk = decoder.decode(value);
+                                    // Process SSE chunks
+                                    const lines = chunk.split('\n\n');
+                                    
+                                    for (const line of lines) {
+                                        if (line.startsWith('data: ')) {
+                                            try {
+                                                const eventData = JSON.parse(line.substring(6));
+                                                
+                                                if (eventData.error) {
+                                                    contentDiv.textContent = eventData.full;
+                                                    resetButtonState();
+                                                    return;
+                                                }
+                                                
+                                                // Update the content with new text
+                                                contentDiv.innerHTML = eventData.full + '<span class="typing">|</span>';
+                                                scrollToBottom();
+                                            } catch (e) {
+                                                console.error('Error parsing SSE data:', e);
+                                            }
+                                        }
+                                    }
+                                    
+                                    return processStream();
+                                });
+                            }
+                            
+                            return processStream();
+                        });
+                    } else {
+                        // Handle non-streaming response
+                        contentDiv.textContent = data.response;
+                        resetButtonState();
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    contentDiv.textContent = 'Sorry, an error occurred. Please try again.';
+                    resetButtonState();
+                });
+            }
+            
+            function addMessageToChat(role, content) {
+                const messageDiv = document.createElement('div');
+                messageDiv.className = `message ${role === 'user' ? 'user-message' : 'bot-message'}`;
+                
+                const roleDiv = document.createElement('div');
+                roleDiv.className = 'message-role';
+                roleDiv.textContent = role === 'user' ? 'You' : 'Kambot';
+                
+                const contentDiv = document.createElement('div');
+                contentDiv.className = 'message-content';
+                contentDiv.textContent = content;
+                
+                messageDiv.appendChild(roleDiv);
+                messageDiv.appendChild(contentDiv);
+                
+                chatHistory.insertBefore(messageDiv, thinkingIndicator);
+                scrollToBottom();
+            }
+            
+            function resetButtonState() {
+                button.disabled = false;
+                button.classList.remove('loading');
+                buttonText.textContent = 'Send';
+                spinner.style.display = 'none';
+            }
+            
+            const originalAddMessageToChat = addMessageToChat;
+            addMessageToChat = function(role, content) {
+                originalAddMessageToChat(role, content);
+                setTimeout(() => {}, 10);
+            };
+        });
+    </script>
+</body>
+</html>
