@@ -119,6 +119,14 @@ def stream_response():
             ) as response:
                 full_response = ""
                 
+                # Check if the response was successful
+                if response.status_code != 200:
+                    error_msg = f"API Error: Status code {response.status_code}"
+                    yield f"data: {json.dumps({'content': error_msg, 'full': error_msg, 'error': True})}\n\n"
+                    chat_history.append({"role": "assistant", "content": error_msg})
+                    save_chat_history(user_id, chat_history)
+                    return
+
                 # Check if the API supports streaming
                 if response.headers.get('content-type') == 'text/event-stream':
                     # Process SSE stream
@@ -130,22 +138,32 @@ def stream_response():
                                 if data == '[DONE]':
                                     break
                                 try:
-                                    json_data = json.loads(data)
-                                    if 'choices' in json_data and len(json_data['choices']) > 0:
-                                        delta = json_data['choices'][0].get('delta', {})
-                                        if 'content' in delta:
-                                            content = delta['content'].replace('*', '')
-                                            full_response += content
-                                            yield f"data: {json.dumps({'content': content, 'full': full_response})}\n\n"
-                                            # Make sure to properly flush responses for chunked data
-                                except json.JSONDecodeError:
+                                    # Check if data is not empty before parsing
+                                    if data.strip():
+                                        json_data = json.loads(data)
+                                        if 'choices' in json_data and len(json_data['choices']) > 0:
+                                            delta = json_data['choices'][0].get('delta', {})
+                                            if 'content' in delta:
+                                                content = delta['content'].replace('*', '')
+                                                full_response += content
+                                                yield f"data: {json.dumps({'content': content, 'full': full_response})}\n\n"
+                                except json.JSONDecodeError as e:
+                                    print(f"JSON decode error: {e}, data: '{data}'")
                                     continue
                 else:
                     # Fallback to non-streaming API
-                    response_data = response.json()
-                    content = response_data['choices'][0]['message']['content'].replace('*', '')
-                    full_response = content
-                    yield f"data: {json.dumps({'content': content, 'full': full_response})}\n\n"
+                    try:
+                        response_data = response.json()
+                        if 'choices' in response_data and len(response_data['choices']) > 0:
+                            content = response_data['choices'][0]['message']['content'].replace('*', '')
+                            full_response = content
+                            yield f"data: {json.dumps({'content': content, 'full': full_response})}\n\n"
+                        else:
+                            error_msg = "Invalid response format from API"
+                            yield f"data: {json.dumps({'content': error_msg, 'full': error_msg, 'error': True})}\n\n"
+                    except json.JSONDecodeError:
+                        error_msg = "Failed to parse API response"
+                        yield f"data: {json.dumps({'content': error_msg, 'full': error_msg, 'error': True})}\n\n"
                 
                 # Store the complete response in the user's chat history
                 if full_response:
