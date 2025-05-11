@@ -118,53 +118,37 @@ def stream_response():
                 timeout=60  # Increase timeout to 60 seconds for longer responses
             ) as response:
                 full_response = ""
-                
+                print(f"Venice API status: {response.status_code}")
+                print(f"Venice API raw response: {response.text if not response.headers.get('content-type', '').startswith('text/event-stream') else '[streaming response]'}")
                 # Check if the response was successful
                 if response.status_code != 200:
-                    error_msg = f"API Error: Status code {response.status_code}"
+                    error_msg = f"API Error: Status code {response.status_code} | {response.text}"
                     yield f"data: {json.dumps({'content': error_msg, 'full': error_msg, 'error': True})}\n\n"
                     chat_history.append({"role": "assistant", "content": error_msg})
                     save_chat_history(user_id, chat_history)
                     return
 
-                # Check if the API supports streaming
-                if response.headers.get('content-type') == 'text/event-stream':
-                    # Process SSE stream
-                    for line in response.iter_lines():
-                        if line:
-                            line_text = line.decode('utf-8')
-                            if line_text.startswith('data: '):
-                                data = line_text[6:]  # Remove 'data: ' prefix
-                                if data == '[DONE]':
-                                    break
-                                try:
-                                    # Check if data is not empty before parsing
-                                    if data.strip():
-                                        json_data = json.loads(data)
-                                        if 'choices' in json_data and len(json_data['choices']) > 0:
-                                            delta = json_data['choices'][0].get('delta', {})
-                                            if 'content' in delta:
-                                                content = delta['content'].replace('*', '')
-                                                full_response += content
-                                                yield f"data: {json.dumps({'content': content, 'full': full_response})}\n\n"
-                                except json.JSONDecodeError as e:
-                                    print(f"JSON decode error: {e}, data: '{data}'")
-                                    continue
-                else:
-                    # Fallback to non-streaming API
-                    try:
-                        response_data = response.json()
-                        if 'choices' in response_data and len(response_data['choices']) > 0:
-                            content = response_data['choices'][0]['message']['content'].replace('*', '')
-                            full_response = content
-                            yield f"data: {json.dumps({'content': content, 'full': full_response})}\n\n"
-                        else:
-                            error_msg = "Invalid response format from API"
-                            yield f"data: {json.dumps({'content': error_msg, 'full': error_msg, 'error': True})}\n\n"
-                    except json.JSONDecodeError:
-                        error_msg = "Failed to parse API response"
-                        yield f"data: {json.dumps({'content': error_msg, 'full': error_msg, 'error': True})}\n\n"
-                
+                # Always process as streaming if stream=True
+                for line in response.iter_lines():
+                    if line:
+                        line_text = line.decode('utf-8')
+                        if line_text.startswith('data: '):
+                            data = line_text[6:]  # Remove 'data: ' prefix
+                            if data == '[DONE]':
+                                break
+                            try:
+                                # Check if data is not empty before parsing
+                                if data.strip():
+                                    json_data = json.loads(data)
+                                    if 'choices' in json_data and len(json_data['choices']) > 0:
+                                        delta = json_data['choices'][0].get('delta', {})
+                                        if 'content' in delta:
+                                            content = delta['content'].replace('*', '')
+                                            full_response += content
+                                            yield f"data: {json.dumps({'content': content, 'full': full_response})}\n\n"
+                            except json.JSONDecodeError as e:
+                                print(f"JSON decode error: {e}, data: '{data}'")
+                                continue
                 # Store the complete response in the user's chat history
                 if full_response:
                     chat_history.append({"role": "assistant", "content": full_response})
@@ -189,8 +173,8 @@ def get_bot_response(chat_history):
             # Include entire conversation history for context
             *[{"role": msg["role"], "content": msg["content"]} for msg in chat_history]
         ],
-        "temperature": 1,
-        "top_p": 1,
+        "temperature": 0.15,  # Match docs
+        "top_p": 0.9,         # Match docs
         "n": 1,
         "presence_penalty": 0,
         "frequency_penalty": 0,
@@ -209,9 +193,14 @@ def get_bot_response(chat_history):
             headers=headers,
             timeout=30
         )
-        response_data = response.json()
-        response_text = response_data['choices'][0]['message']['content'].replace('*', '')
-        return response_text
+        print(f"Venice API status: {response.status_code}")
+        print(f"Venice API raw response: {response.text}")
+        try:
+            response_data = response.json()
+            response_text = response_data['choices'][0]['message']['content'].replace('*', '')
+            return response_text
+        except Exception as e:
+            return f"Failed to parse API response: {response.text}"
     except Exception as e:
         return f"Error: {str(e)}"
 
