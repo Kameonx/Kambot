@@ -13,7 +13,7 @@ if not os.path.exists(CHAT_DIR):
     os.makedirs(CHAT_DIR)
 
 # API key is directly defined here for simplicity
-VENICE_API_KEY = "-Y3up9vlEXoVFf1ZsrXhB4rbPXd8V6ywgiSZziI3bR"
+VENICE_API_KEY = "XIXcv0z57ZOeyPtPO7q37s_ktEvLRAz0E8jFaocVbv"
 
 def get_user_id():
     """Get or create a unique user ID for the current session"""
