@@ -1,6 +1,14 @@
+import os
+from dotenv import load_dotenv  # Add this import
+
+load_dotenv(override=True)  # Ensure .env is loaded and overrides any existing env vars
+
+# Always load .env from the directory where this script resides
+dotenv_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '.env')
+load_dotenv(dotenv_path)
+
 from flask import Flask, render_template, request, redirect, url_for, session, jsonify, Response, stream_with_context, make_response
 import requests
-import os
 import json
 import uuid
 
@@ -12,8 +20,20 @@ CHAT_DIR = 'chat_histories'
 if not os.path.exists(CHAT_DIR):
     os.makedirs(CHAT_DIR)
 
-# API key is directly defined here for simplicity
-VENICE_API_KEY = "XIXcv0z57ZOeyPtPO7q37s_ktEvLRAz0E8jFaocVbv"
+# Venice AI Configuration
+VENICE_API_KEY = os.getenv("VENICE_API_KEY")
+if not VENICE_API_KEY:
+    import sys
+    print("ERROR: VENICE_API_KEY not found in environment. Please check your .env file.", file=sys.stderr)
+MODEL_ID = "llama-3.3-70b"
+VENICE_URL = "https://api.venice.ai/api/v1/chat/completions"
+
+# Debug: Print loaded key and working directory (remove before deploying)
+if VENICE_API_KEY:
+    print("Loaded VENICE_API_KEY (masked):", f"{VENICE_API_KEY[:6]}...{VENICE_API_KEY[-4:]}")
+else:
+    print("Loaded VENICE_API_KEY (masked): None")
+print("Current working directory:", os.getcwd())
 
 def get_user_id():
     """Get or create a unique user ID for the current session"""
@@ -101,11 +121,13 @@ def stream_response():
             "presence_penalty": 0,
             "frequency_penalty": 0,
             "parallel_tool_calls": True
+            # Optionally add: "max_completion_tokens": 512
         }
 
         headers = {
             "Authorization": f"Bearer {VENICE_API_KEY}",
             "Content-Type": "application/json"
+            # No Accept-Encoding for streaming
         }
 
         try:
@@ -179,11 +201,13 @@ def get_bot_response(chat_history):
         "presence_penalty": 0,
         "frequency_penalty": 0,
         "parallel_tool_calls": True
+        # Optionally add: "max_completion_tokens": 512
     }
 
     headers = {
         "Authorization": f"Bearer {VENICE_API_KEY}",
-        "Content-Type": "application/json"
+        "Content-Type": "application/json",
+        "Accept-Encoding": "gzip, br"
     }
 
     try:
