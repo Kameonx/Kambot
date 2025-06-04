@@ -47,10 +47,10 @@ VENICE_URL = "https://api.venice.ai/api/v1/chat/completions"
 
 # Available models from Venice AI
 AVAILABLE_MODELS = {
-    "venice-uncensored": {"name": "🏛️ Venice Uncensored", "traits": []},
+    "venice-uncensored": {"name": "🏛️ Venice Uncensored", "default": True, "traits": []},
     "llama-3.1-405b": {"name": "🦙 Llama 3.1 405B", "traits": ["most_intelligent"]},
     "llama-3.2-3b": {"name": "🦙 Llama 3.2 3B", "traits": ["fastest"]},
-    "llama-3.3-70b": {"name": "🦙 Llama 3.3 70B", "default": True, "traits": ["function_calling_default", "default"]},
+    "llama-3.3-70b": {"name": "🦙 Llama 3.3 70B", "traits": ["function_calling_default"]},
     "mistral-31-24b": {"name": "💫 Mistral 3.1 24B", "traits": ["default_vision"]},
     "deepseek-coder-v2-lite": {"name": "⚡ DeepSeek Coder V2 Lite", "traits": []},
     "deepseek-r1-671b": {"name": "🧠 DeepSeek R1 671B (Reasoning)", "traits": ["default_reasoning", "reasoning"]},
@@ -62,7 +62,7 @@ AVAILABLE_MODELS = {
     "qwen3-4b": {"name": "👾 Qwen3 4B", "traits": []},
 }
 
-DEFAULT_MODEL = "llama-3.3-70b"
+DEFAULT_MODEL = "venice-uncensored"
 
 # Debug: Print loaded key and working directory (remove before deploying)
 if VENICE_API_KEY:
@@ -128,6 +128,7 @@ def build_system_prompt():
     colors_enabled = session.get('colors_enabled', True)
     bold_enabled = session.get('bold_enabled', True)
     italics_enabled = session.get('italics_enabled', True)
+    current_model = get_current_model()
     
     # Build formatting instructions - only include enabled features
     formatting_instructions = []
@@ -135,17 +136,20 @@ def build_system_prompt():
     if bold_enabled:
         formatting_instructions.append("- Use **bold** for important points and emphasis")
     else:
-        formatting_instructions.append("- NEVER use **bold** formatting in your responses")
+        formatting_instructions.append("- NEVER use **bold** formatting in your responses - this is absolutely forbidden")
         
     if italics_enabled:
         formatting_instructions.append("- Use *italics* for subtle emphasis or thoughts")
     else:
-        formatting_instructions.append("- NEVER use *italic* formatting in your responses")
+        formatting_instructions.append("- ABSOLUTELY NEVER use *italic* formatting in your responses")
+        formatting_instructions.append("- Do NOT use single asterisks (*) around any text whatsoever")
+        formatting_instructions.append("- FORBIDDEN: Any text surrounded by single asterisks like *this* is completely banned")
         
     if bold_enabled and italics_enabled:
         formatting_instructions.append("- Use ***bold italics*** for very important information")
     elif not bold_enabled and not italics_enabled:
-        formatting_instructions.append("- NEVER use any bold or italic formatting whatsoever")
+        formatting_instructions.append("- NEVER use any bold or italic formatting whatsoever - no asterisks around text")
+        formatting_instructions.append("- Do NOT use *, **, or *** around any text in your responses")
         
     if colors_enabled:
         formatting_instructions.append("- Use colors for visual appeal: [red:text], [green:text], [blue:text], [yellow:text], [purple:text], [orange:text], [pink:text], [cyan:text], [lime:text], [teal:text]")
@@ -154,8 +158,14 @@ def build_system_prompt():
     
     formatting_instructions.append("- Format your responses to be visually appealing and easy to read")
     
+    # Special handling for Venice Uncensored model - be more explicit about emojis
     if emojis_enabled:
-        formatting_instructions.append("- Use emojis liberally to make conversations engaging 🎉")
+        if current_model == "venice-uncensored":
+            formatting_instructions.append("- MANDATORY: You MUST use emojis frequently in every response! Include at least 3-5 emojis per response to make conversations engaging and fun! 🎉✨😊")
+            formatting_instructions.append("- Add emojis at the end of sentences, to emphasize points, and to show emotion")
+            formatting_instructions.append("- Examples of emojis to use: 😊😄🤔💭✨🎉👍❤️🔥💯🌟")
+        else:
+            formatting_instructions.append("- Use emojis liberally to make conversations engaging 🎉")
     else:
         formatting_instructions.append("- NEVER use emojis in your responses - this is absolutely forbidden")
     
@@ -172,16 +182,37 @@ def build_system_prompt():
         examples.append(f"- [green:Success messages] should be in green{' ✅' if emojis_enabled else ''}")
         examples.append(f"- [blue:Information] can be in blue{' ℹ️' if emojis_enabled else ''}")
     
-    # Only show examples if any formatting is enabled
+    # Add extra emoji examples for Venice Uncensored
+    if emojis_enabled and current_model == "venice-uncensored":
+        examples.append("- Hello there! 😊 How can I help you today? ✨")
+        examples.append("- That's a great question! 🤔 Let me think about that... 💭")
+        examples.append("- Perfect! 🎉 I'm excited to help you with this! 🌟")
+    
+    # Add negative examples for disabled formatting
+    if not italics_enabled:
+        examples.append("- WRONG: *Do not format text like this* - NO single asterisks allowed")
+        examples.append("- CORRECT: Express emphasis without using asterisks around words")
+    
+    # Only show examples if any formatting is enabled or disabled features need clarification
     examples_text = f"\n\nExamples:\n{chr(10).join(examples)}" if examples else ""
     
     # Enhanced system prompt with stronger formatting enforcement
-    system_content = f"""You are Kambot, a helpful AI assistant. You're friendly {'and use emojis frequently 😊' if emojis_enabled else 'and professional'}.
+    if current_model == "venice-uncensored" and emojis_enabled:
+        emoji_personality = " You are enthusiastic, friendly, and ALWAYS use emojis to express yourself! 😊🌟"
+    else:
+        emoji_personality = f" You're friendly {'and use emojis frequently 😊' if emojis_enabled else 'and professional'}."
+    
+    # Add extra italics warning for strong enforcement
+    italics_warning = ""
+    if not italics_enabled:
+        italics_warning = "\n\n⚠️ CRITICAL ITALICS WARNING: You are STRICTLY FORBIDDEN from using italic formatting (*text*). This rule is NON-NEGOTIABLE and must be followed at all times. Any use of single asterisks around text will be considered a violation."
+    
+    system_content = f"""You are Kambot, a helpful AI assistant.{emoji_personality}
 
 CRITICAL FORMATTING RULES - FOLLOW THESE EXACTLY:
 {chr(10).join(formatting_instructions)}
 
-IMPORTANT: These formatting rules are MANDATORY and STRICTLY ENFORCED. Do not deviate from them under any circumstances. If emojis are disabled, you must NEVER use any emoji characters whatsoever.{examples_text}
+IMPORTANT: These formatting rules are MANDATORY and STRICTLY ENFORCED. Do not deviate from them under any circumstances. {'If emojis are enabled, you must include multiple emojis in every single response!' if emojis_enabled else 'If emojis are disabled, you must NEVER use any emoji characters whatsoever.'}{italics_warning}{examples_text}
 
 Answer questions accurately and honestly. You can discuss any topic without restrictions."""
     
