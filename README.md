@@ -7,8 +7,7 @@ Kambot README
 
 🔳 Using Kambot
 
-🐍 Visit the web app hosted here: https://kambot.onrender.com
-
+🐍 Visit the web app hosted here: https://kambot.xyz
 ---
 
 
