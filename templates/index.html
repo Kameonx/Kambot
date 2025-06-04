@@ -560,6 +560,7 @@
         @media (max-width: 768px) {
             body {
                 flex-direction: column;
+                overflow: auto; /* Allow scrolling on mobile */
             }
             
             .sidebar {
@@ -575,6 +576,7 @@
                 z-index: 1001;
                 transform: translateX(-100%);
                 transition: transform 0.3s ease;
+                overflow-y: auto; /* Enable scrolling in sidebar */
             }
             
             .sidebar.collapsed {
@@ -611,6 +613,7 @@
                 height: 100vh;
                 margin-left: 0;
                 margin-top: 0;
+                overflow: auto; /* Allow scrolling in main content */
             }
             
             .main-content.sidebar-collapsed {
@@ -624,10 +627,16 @@
                 padding: 15px;
                 padding-top: 70px;
                 gap: 15px;
+                height: auto; /* Remove fixed height */
+                min-height: calc(100vh - 30px); /* Ensure full height */
             }
             
             .chat-history {
                 padding: 15px;
+                height: auto; /* Remove fixed height */
+                min-height: 300px; /* Minimum height for chat area */
+                overflow-y: auto; /* Enable scrolling */
+                -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
             }
             
             .message {
@@ -637,6 +646,7 @@
             
             .input-area {
                 padding: 15px;
+                position: relative; /* Remove fixed positioning */
             }
             
             textarea {
@@ -644,6 +654,8 @@
                 max-height: 120px;
                 padding: 12px;
                 font-size: 16px;
+                -webkit-appearance: none; /* Remove iOS styling */
+                appearance: none; /* Remove default styling */
             }
             
             textarea::placeholder {
@@ -695,6 +707,7 @@
             .chat-container {
                 padding: 10px;
                 padding-top: 65px;
+                padding-bottom: 20px; /* Add bottom padding */
             }
             
             .sidebar-header h1 {
@@ -707,6 +720,12 @@
             
             textarea::placeholder {
                 content: "Type message...";
+            }
+            
+            /* Ensure proper touch scrolling */
+            .chat-history {
+                -webkit-overflow-scrolling: touch;
+                touch-action: pan-y;
             }
         }
     </style>
