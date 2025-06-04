@@ -402,7 +402,7 @@
             white-space: pre-wrap;
         }
         
-        /* Text formatting styles */
+        /* Formatting styles for bot messages */
         .message-content strong {
             font-weight: 700;
             color: #ffffff;
@@ -413,88 +413,150 @@
             color: #e0e0e0;
         }
         
-        .message-content .text-red {
-            color: #ff6b6b;
+        .message-content .color-red { color: #ff6b6b; }
+        .message-content .color-green { color: #51cf66; }
+        .message-content .color-blue { color: #74c0fc; }
+        .message-content .color-yellow { color: #ffd43b; }
+        .message-content .color-purple { color: #d084ff; }
+        .message-content .color-orange { color: #ff922b; }
+        .message-content .color-pink { color: #ffa8cc; }
+        .message-content .color-cyan { color: #74e6e6; }
+        .message-content .color-lime { color: #c9ff74; }
+        .message-content .color-teal { color: #66d9ef; }
+        
+        .input-area {
+            background: #2a2a2a;
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid #404040;
         }
         
-        .message-content .text-green {
-            color: #51cf66;
+        .input-row {
+            display: flex;
+            align-items: flex-end;
+            gap: 12px;
         }
         
-        .message-content .text-blue {
-            color: #74c0fc;
+        textarea {
+            flex: 1;
+            padding: 16px;
+            border: 1px solid #404040;
+            border-radius: 10px;
+            font-size: 16px;
+            background: #1a1a1a;
+            color: #ffffff;
+            resize: none;
+            min-height: 56px;
+            max-height: 150px;
+            line-height: 1.5;
+            font-family: inherit;
+            transition: border-color 0.2s ease;
         }
         
-        .message-content .text-yellow {
-            color: #ffd43b;
+        textarea:focus {
+            outline: none;
+            border-color: #10a37f;
+            box-shadow: 0 0 0 3px rgba(16, 163, 127, 0.1);
         }
         
-        .message-content .text-purple {
-            color: #da77f2;
+        textarea::placeholder {
+            color: #8e8ea0;
         }
         
-        .message-content .text-orange {
-            color: #ff922b;
+        .send-button {
+            padding: 16px 24px;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            background: linear-gradient(135deg, #10a37f, #0d8f6a);
+            color: #ffffff;
+            box-shadow: 0 2px 10px rgba(16, 163, 127, 0.3);
+            min-width: 100px;
         }
         
-        .message-content .text-cyan {
-            color: #22b8cf;
+        .send-button:hover {
+            background: linear-gradient(135deg, #0d8f6a, #0a7356);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 15px rgba(16, 163, 127, 0.4);
         }
         
-        .message-content code {
-            background: rgba(255, 255, 255, 0.1);
-            padding: 2px 6px;
-            border-radius: 4px;
-            font-family: 'Courier New', monospace;
+        .send-button:active {
+            transform: translateY(0);
+        }
+        
+        .send-button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            pointer-events: none;
+        }
+        
+        .loading {
+            background: #2c8c44;
+            color: rgba(255, 255, 255, 0.8);
+        }
+        
+        .spinner {
+            display: none;
+            width: 18px;
+            height: 18px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s linear infinite;
+        }
+        
+        .loading .spinner {
+            display: inline-block;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        #thinking-indicator {
+            display: none;
+            margin-top: 15px;
+            text-align: center;
+            font-style: italic;
+            color: #8e8ea0;
             font-size: 14px;
         }
         
-        .message-content pre {
-            background: rgba(255, 255, 255, 0.05);
-            padding: 12px;
-            border-radius: 8px;
-            overflow-x: auto;
-            margin: 8px 0;
+        .typing {
+            display: inline-block;
+            animation: blink 0.7s infinite;
         }
         
-        .message-content pre code {
-            background: none;
-            padding: 0;
+        @keyframes blink {
+            0% { opacity: 1; }
+            50% { opacity: 0; }
+            100% { opacity: 1; }
         }
         
-        /* Improved scrollbar styling */
-        .chat-history::-webkit-scrollbar {
-            width: 6px;
+        /* Scrollbar styling */
+        ::-webkit-scrollbar {
+            width: 8px;
         }
         
-        .chat-history::-webkit-scrollbar-track {
-            background: transparent;
+        ::-webkit-scrollbar-track {
+            background: #2a2a2a;
+            border-radius: 10px;
         }
         
-        .chat-history::-webkit-scrollbar-thumb {
-            background: rgba(255, 255, 255, 0.2);
-            border-radius: 6px;
-            transition: background 0.3s ease;
+        ::-webkit-scrollbar-thumb {
+            background: #505050;
+            border-radius: 10px;
         }
         
-        .chat-history::-webkit-scrollbar-thumb:hover {
-            background: rgba(255, 255, 255, 0.4);
-        }
-        
-        /* Hide scrollbar when not scrolling */
-        .chat-history {
-            scrollbar-width: thin;
-            scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
-            overflow-y: auto;
-            overflow-x: hidden;
-        }
-        
-        .chat-history:not(:hover)::-webkit-scrollbar-thumb {
-            background: transparent;
-        }
-        
-        .chat-history:hover::-webkit-scrollbar-thumb {
-            background: rgba(255, 255, 255, 0.2);
+        ::-webkit-scrollbar-thumb:hover {
+            background: #606060;
         }
         
         /* Firefox scrollbar */
@@ -721,6 +783,9 @@
             <button class="sidebar-button" id="copy-chat-button">
                 📋 Copy Chat
             </button>
+            <button class="sidebar-button" id="emoji-toggle-button">
+                😊 Enable Emojis
+            </button>
             <button class="sidebar-button" id="undo-button">
                 ↶ Undo
             </button>
@@ -816,6 +881,7 @@
             const clearModal = document.getElementById('clear-modal');
             const cancelClear = document.getElementById('cancel-clear');
             const confirmClear = document.getElementById('confirm-clear');
+            const emojiToggleButton = document.getElementById('emoji-toggle-button');
             
             // Sidebar toggle functionality - Start with sidebar closed
             let sidebarOpen = false;
@@ -1070,8 +1136,9 @@
                             function processStream() {
                                 return reader.read().then(({ done, value }) => {
                                     if (done) {
+                                        // Format the final content and remove cursor
                                         const finalText = contentDiv.textContent.replace('|', '');
-                                        contentDiv.textContent = finalText;
+                                        contentDiv.innerHTML = formatMessage(finalText);
                                         resetButtonState();
                                         return;
                                     }
@@ -1093,7 +1160,8 @@
                                                 const wasAtBottom = !userHasScrolled || 
                                                     (chatHistory.scrollHeight - chatHistory.clientHeight <= chatHistory.scrollTop + 20);
                                                 
-                                                contentDiv.innerHTML = parseMarkdown(eventData.full) + '<span class="typing">|</span>';
+                                                // Format the content during streaming for bot messages
+                                                contentDiv.innerHTML = formatMessage(eventData.full) + '<span class="typing">|</span>';
                                                 
                                                 if (wasAtBottom) {
                                                     chatHistory.scrollTop = chatHistory.scrollHeight;
@@ -1111,7 +1179,7 @@
                             return processStream();
                         });
                     } else {
-                        contentDiv.innerHTML = parseMarkdown(data.response);
+                        contentDiv.textContent = data.response;
                         resetButtonState();
                     }
                 })
@@ -1132,7 +1200,13 @@
                 
                 const contentDiv = document.createElement('div');
                 contentDiv.className = 'message-content';
-                contentDiv.innerHTML = parseMarkdown(content);
+                
+                // Format the content if it's from the bot
+                if (role === 'assistant' || role === 'bot') {
+                    contentDiv.innerHTML = formatMessage(content);
+                } else {
+                    contentDiv.textContent = content;
+                }
                 
                 messageDiv.appendChild(roleDiv);
                 messageDiv.appendChild(contentDiv);
@@ -1146,48 +1220,90 @@
                 }
             }
             
-            // Parse markdown-like formatting
-            function parseMarkdown(text) {
-                if (!text) return '';
-                
+            // Function to format markdown-style text
+            function formatMessage(text) {
                 // Escape HTML first
-                text = text.replace(/&/g, '&amp;')
-                          .replace(/</g, '&lt;')
-                          .replace(/>/g, '&gt;');
+                let formatted = text.replace(/&/g, '&amp;')
+                                  .replace(/</g, '&lt;')
+                                  .replace(/>/g, '&gt;');
                 
-                // Parse code blocks first (to avoid formatting inside them)
-                text = text.replace(/```([\s\S]*?)```/g, '<pre><code>$1</code></pre>');
+                // Handle ***bold italic*** (must come before ** and *)
+                formatted = formatted.replace(/\*\*\*(.*?)\*\*\*/g, '<strong><em>$1</em></strong>');
                 
-                // Parse inline code
-                text = text.replace(/`([^`]+)`/g, '<code>$1</code>');
+                // Handle **bold**
+                formatted = formatted.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
                 
-                // Parse bold and italic combinations
-                text = text.replace(/\*\*\*(.*?)\*\*\*/g, '<strong><em>$1</em></strong>');
-                text = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-                text = text.replace(/\*(.*?)\*/g, '<em>$1</em>');
+                // Handle *italic*
+                formatted = formatted.replace(/\*(.*?)\*/g, '<em>$1</em>');
                 
-                // Parse colored text: [color:text] format
-                text = text.replace(/\[red:(.*?)\]/g, '<span class="text-red">$1</span>');
-                text = text.replace(/\[green:(.*?)\]/g, '<span class="text-green">$1</span>');
-                text = text.replace(/\[blue:(.*?)\]/g, '<span class="text-blue">$1</span>');
-                text = text.replace(/\[yellow:(.*?)\]/g, '<span class="text-yellow">$1</span>');
-                text = text.replace(/\[purple:(.*?)\]/g, '<span class="text-purple">$1</span>');
-                text = text.replace(/\[orange:(.*?)\]/g, '<span class="text-orange">$1</span>');
-                text = text.replace(/\[cyan:(.*?)\]/g, '<span class="text-cyan">$1</span>');
+                // Handle [color:text] formatting
+                formatted = formatted.replace(/\[red:(.*?)\]/g, '<span class="color-red">$1</span>');
+                formatted = formatted.replace(/\[green:(.*?)\]/g, '<span class="color-green">$1</span>');
+                formatted = formatted.replace(/\[blue:(.*?)\]/g, '<span class="color-blue">$1</span>');
+                formatted = formatted.replace(/\[yellow:(.*?)\]/g, '<span class="color-yellow">$1</span>');
+                formatted = formatted.replace(/\[purple:(.*?)\]/g, '<span class="color-purple">$1</span>');
+                formatted = formatted.replace(/\[orange:(.*?)\]/g, '<span class="color-orange">$1</span>');
+                formatted = formatted.replace(/\[pink:(.*?)\]/g, '<span class="color-pink">$1</span>');
+                formatted = formatted.replace(/\[cyan:(.*?)\]/g, '<span class="color-cyan">$1</span>');
+                formatted = formatted.replace(/\[lime:(.*?)\]/g, '<span class="color-lime">$1</span>');
+                formatted = formatted.replace(/\[teal:(.*?)\]/g, '<span class="color-teal">$1</span>');
                 
-                // Convert line breaks
-                text = text.replace(/\n/g, '<br>');
-                
-                return text;
+                return formatted;
             }
             
-            // Update existing messages to use markdown parsing
-            document.addEventListener('DOMContentLoaded', function() {
-                const existingMessages = document.querySelectorAll('.message-content');
-                existingMessages.forEach(messageContent => {
-                    const originalText = messageContent.textContent;
-                    messageContent.innerHTML = parseMarkdown(originalText);
+            function resetButtonState() {
+                button.disabled = false;
+                button.classList.remove('loading');
+                buttonText.textContent = 'Send';
+                spinner.style.display = 'none';
+            }
+            
+            // Emoji toggle functionality
+            let emojisEnabled = localStorage.getItem('emojisEnabled') !== null ? localStorage.getItem('emojisEnabled') === 'true' : true;
+            
+            function updateEmojiButton() {
+                if (emojisEnabled) {
+                    emojiToggleButton.textContent = '😊 Disable Emojis';
+                    emojiToggleButton.style.background = '#2c8c44';
+                    emojiToggleButton.style.borderColor = '#51cf66';
+                } else {
+                    emojiToggleButton.textContent = '😐 Enable Emojis';
+                    emojiToggleButton.style.background = '#2a2b2e';
+                    emojiToggleButton.style.borderColor = '#404142';
+                }
+            }
+            
+            // Initialize emoji button state
+            updateEmojiButton();
+            
+            emojiToggleButton.addEventListener('click', function() {
+                emojisEnabled = !emojisEnabled;
+                localStorage.setItem('emojisEnabled', emojisEnabled.toString());
+                updateEmojiButton();
+                
+                // Send the setting to the server
+                fetch('/set_emoji_mode', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ emojis_enabled: emojisEnabled })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        console.log('Emoji mode updated:', emojisEnabled);
+                    }
                 });
+            });
+            
+            // Send initial emoji setting to server on page load
+            fetch('/set_emoji_mode', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ emojis_enabled: emojisEnabled })
             });
         });
     </script>
