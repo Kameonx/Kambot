@@ -30,19 +30,19 @@ VENICE_URL = "https://api.venice.ai/api/v1/chat/completions"
 
 # Available models from Venice AI
 AVAILABLE_MODELS = {
-    "llama-3.3-70b": {"name": "🦙 Llama 3.3 70B", "default": True, "traits": ["function_calling_default", "default"]},
-    "deepseek-r1-671b": {"name": "🧠 DeepSeek R1 671B", "traits": ["default_reasoning"]},
+    "venice-uncensored": {"name": "🏛️ Venice Uncensored", "traits": []},
     "llama-3.1-405b": {"name": "🦙 Llama 3.1 405B", "traits": ["most_intelligent"]},
-    "qwen3-235b": {"name": "🔮 Qwen3 235B", "traits": []},
+    "llama-3.2-3b": {"name": "🦙 Llama 3.2 3B", "traits": ["fastest"]},
+    "llama-3.3-70b": {"name": "🦙 Llama 3.3 70B", "default": True, "traits": ["function_calling_default", "default"]},
     "mistral-31-24b": {"name": "💫 Mistral 3.1 24B", "traits": ["default_vision"]},
+    "deepseek-coder-v2-lite": {"name": "⚡ DeepSeek Coder V2 Lite", "traits": []},
+    "deepseek-r1-671b": {"name": "🧠 DeepSeek R1 671B", "traits": ["default_reasoning"]},
+    "dolphin-2.9.2-qwen2-72b": {"name": "🐬 Dolphin Qwen2 72B", "traits": ["most_uncensored"]},
     "qwen-2.5-coder-32b": {"name": "💻 Qwen 2.5 Coder 32B", "traits": ["default_code"]},
     "qwen-2.5-qwq-32b": {"name": "🤔 Qwen 2.5 QwQ 32B", "traits": ["reasoning"]},
     "qwen-2.5-vl": {"name": "👁️ Qwen 2.5 VL", "traits": []},
-    "dolphin-2.9.2-qwen2-72b": {"name": "🐬 Dolphin Qwen2 72B", "traits": ["most_uncensored"]},
-    "venice-uncensored": {"name": "🏛️ Venice Uncensored", "traits": []},
-    "deepseek-coder-v2-lite": {"name": "⚡ DeepSeek Coder V2 Lite", "traits": []},
-    "qwen3-4b": {"name": "🔮 Qwen3 4B", "traits": []},
-    "llama-3.2-3b": {"name": "🦙 Llama 3.2 3B", "traits": ["fastest"]}
+    "qwen3-235b": {"name": "🔮 Qwen3 235B", "traits": []},
+    "qwen3-4b": {"name": "👾 Qwen3 4B", "traits": []},
 }
 
 DEFAULT_MODEL = "llama-3.3-70b"
