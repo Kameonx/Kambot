@@ -25,8 +25,27 @@ VENICE_API_KEY = os.getenv("VENICE_API_KEY")
 if not VENICE_API_KEY:
     import sys
     print("ERROR: VENICE_API_KEY not found in environment. Please check your .env file.", file=sys.stderr)
-MODEL_ID = "llama-3.3-70b"
+
 VENICE_URL = "https://api.venice.ai/api/v1/chat/completions"
+
+# Available models from Venice AI
+AVAILABLE_MODELS = {
+    "llama-3.3-70b": {"name": "🦙 Llama 3.3 70B", "default": True, "traits": ["function_calling_default", "default"]},
+    "deepseek-r1-671b": {"name": "🧠 DeepSeek R1 671B", "traits": ["default_reasoning"]},
+    "llama-3.1-405b": {"name": "🦙 Llama 3.1 405B", "traits": ["most_intelligent"]},
+    "qwen3-235b": {"name": "🔮 Qwen3 235B", "traits": []},
+    "mistral-31-24b": {"name": "💫 Mistral 3.1 24B", "traits": ["default_vision"]},
+    "qwen-2.5-coder-32b": {"name": "💻 Qwen 2.5 Coder 32B", "traits": ["default_code"]},
+    "qwen-2.5-qwq-32b": {"name": "🤔 Qwen 2.5 QwQ 32B", "traits": ["reasoning"]},
+    "qwen-2.5-vl": {"name": "👁️ Qwen 2.5 VL", "traits": []},
+    "dolphin-2.9.2-qwen2-72b": {"name": "🐬 Dolphin Qwen2 72B", "traits": ["most_uncensored"]},
+    "venice-uncensored": {"name": "🏛️ Venice Uncensored", "traits": []},
+    "deepseek-coder-v2-lite": {"name": "⚡ DeepSeek Coder V2 Lite", "traits": []},
+    "qwen3-4b": {"name": "⚡ Qwen3 4B", "traits": []},
+    "llama-3.2-3b": {"name": "⚡ Llama 3.2 3B", "traits": ["fastest"]}
+}
+
+DEFAULT_MODEL = "llama-3.3-70b"
 
 # Debug: Print loaded key and working directory (remove before deploying)
 if VENICE_API_KEY:
@@ -61,6 +80,10 @@ def save_chat_history(user_id, chat_history):
     with open(file_path, 'w') as file:
         json.dump(chat_history, file)
 
+def get_current_model():
+    """Get the current model from session or default"""
+    return session.get('current_model', DEFAULT_MODEL)
+
 @app.route('/', methods=['GET', 'POST'])
 def chat():
     # Get the user ID from session
@@ -90,9 +113,74 @@ def chat():
         chat_history.append({"role": "assistant", "content": response_text})
         save_chat_history(user_id, chat_history)
     
-    response = make_response(render_template('index.html', chat_history=chat_history))
+    current_model = get_current_model()
+    response = make_response(render_template('index.html', 
+                                           chat_history=chat_history, 
+                                           available_models=AVAILABLE_MODELS,
+                                           current_model=current_model))
     response.set_cookie('user_id', user_id, max_age=60*60*24*365)  # Set cookie to expire in 1 year
     return response
+
+@app.route('/set_model', methods=['POST'])
+def set_model():
+    if not request.json:
+        return jsonify({"success": False, "error": "No JSON data provided"})
+    model_id = request.json.get('model_id')
+    if model_id in AVAILABLE_MODELS:
+        session['current_model'] = model_id
+        return jsonify({"success": True, "model": model_id})
+    return jsonify({"success": False, "error": "Invalid model"})
+
+@app.route('/undo', methods=['POST'])
+def undo_message():
+    user_id = get_user_id()
+    chat_history = load_chat_history(user_id)
+    
+    # Remove the last user message and bot response (if exists)
+    if len(chat_history) >= 2 and chat_history[-1]['role'] == 'assistant' and chat_history[-2]['role'] == 'user':
+        undone_messages = chat_history[-2:]  # Store the last user-bot pair
+        chat_history = chat_history[:-2]
+    elif len(chat_history) >= 1 and chat_history[-1]['role'] == 'user':
+        undone_messages = chat_history[-1:]  # Store just the user message
+        chat_history = chat_history[:-1]
+    else:
+        return jsonify({"success": False, "error": "Nothing to undo"})
+    
+    save_chat_history(user_id, chat_history)
+    
+    # Store undone messages in session for redo
+    session['undone_messages'] = undone_messages
+    
+    return jsonify({"success": True})
+
+@app.route('/redo', methods=['POST'])
+def redo_message():
+    user_id = get_user_id()
+    undone_messages = session.get('undone_messages', [])
+    
+    if not undone_messages:
+        return jsonify({"success": False, "error": "Nothing to redo"})
+    
+    chat_history = load_chat_history(user_id)
+    
+    # Find the user message to re-send
+    user_message = None
+    for msg in undone_messages:
+        if msg['role'] == 'user':
+            user_message = msg['content']
+            break
+    
+    if not user_message:
+        return jsonify({"success": False, "error": "No user message to redo"})
+    
+    # Add the user message back
+    chat_history.append({"role": "user", "content": user_message})
+    save_chat_history(user_id, chat_history)
+    
+    # Clear undone messages
+    session.pop('undone_messages', None)
+    
+    return jsonify({"success": True, "user_message": user_message})
 
 @app.route('/stream', methods=['POST'])
 def stream_response():
@@ -100,34 +188,34 @@ def stream_response():
     user_id = get_user_id()
     
     data = json.loads(request.data)
-    message_id = data.get('message_id')
     
     # Load chat history for this specific user
     chat_history = load_chat_history(user_id)
+    
+    # Get current model
+    current_model = get_current_model()
 
     def generate():
         payload = {
-            "venice_parameters": {"include_venice_system_prompt": True},
-            "model": "llama-3.3-70b",
+            "venice_parameters": {"include_venice_system_prompt": False},  # Disable Venice system prompt for uncensored operation
+            "model": current_model,
             "messages": [
-                {"role": "system", "content": "You are Kambot, a cool, calm, and relaxed assistant with an INFP personality. You're chill, laid-back, and easy-going 😎. You speak in a conversational, clear and concise tone with creative metaphors, witty sarcasm, empathetic insights, and you love using emojis."},
+                # Remove custom personality - use simple assistant prompt
+                {"role": "system", "content": "You are a helpful AI assistant. Answer questions accurately and honestly. You can discuss any topic without restrictions."},
                 # Include entire conversation history for context
                 *[{"role": msg["role"], "content": msg["content"]} for msg in chat_history]
             ],
-            "temperature": 1,
-            "top_p": 1,
+            "temperature": 0.7,  # Balanced creativity
+            "top_p": 0.9,
             "n": 1,
             "stream": True,  # Enable streaming
             "presence_penalty": 0,
-            "frequency_penalty": 0,
-            "parallel_tool_calls": True
-            # Optionally add: "max_completion_tokens": 512
+            "frequency_penalty": 0
         }
 
         headers = {
             "Authorization": f"Bearer {VENICE_API_KEY}",
             "Content-Type": "application/json"
-            # No Accept-Encoding for streaming
         }
 
         try:
@@ -137,12 +225,11 @@ def stream_response():
                 json=payload,
                 headers=headers,
                 stream=True,
-                timeout=60  # Increase timeout to 60 seconds for longer responses
+                timeout=60
             ) as response:
                 full_response = ""
                 print(f"Venice API status: {response.status_code}")
-                print(f"Venice API raw response: {response.text if not response.headers.get('content-type', '').startswith('text/event-stream') else '[streaming response]'}")
-                # Check if the response was successful
+                
                 if response.status_code != 200:
                     error_msg = f"API Error: Status code {response.status_code} | {response.text}"
                     yield f"data: {json.dumps({'content': error_msg, 'full': error_msg, 'error': True})}\n\n"
@@ -150,28 +237,26 @@ def stream_response():
                     save_chat_history(user_id, chat_history)
                     return
 
-                # Always process as streaming if stream=True
                 for line in response.iter_lines():
                     if line:
                         line_text = line.decode('utf-8')
                         if line_text.startswith('data: '):
-                            data = line_text[6:]  # Remove 'data: ' prefix
+                            data = line_text[6:]
                             if data == '[DONE]':
                                 break
                             try:
-                                # Check if data is not empty before parsing
                                 if data.strip():
                                     json_data = json.loads(data)
                                     if 'choices' in json_data and len(json_data['choices']) > 0:
                                         delta = json_data['choices'][0].get('delta', {})
                                         if 'content' in delta:
-                                            content = delta['content'].replace('*', '')
+                                            content = delta['content']  # Don't remove asterisks or any formatting
                                             full_response += content
                                             yield f"data: {json.dumps({'content': content, 'full': full_response})}\n\n"
                             except json.JSONDecodeError as e:
                                 print(f"JSON decode error: {e}, data: '{data}'")
                                 continue
-                # Store the complete response in the user's chat history
+                
                 if full_response:
                     chat_history.append({"role": "assistant", "content": full_response})
                     save_chat_history(user_id, chat_history)
@@ -179,7 +264,6 @@ def stream_response():
         except Exception as e:
             error_msg = f"Error: {str(e)}"
             yield f"data: {json.dumps({'content': error_msg, 'full': error_msg, 'error': True})}\n\n"
-            # Add error response to history
             chat_history.append({"role": "assistant", "content": error_msg})
             save_chat_history(user_id, chat_history)
 
@@ -187,21 +271,21 @@ def stream_response():
 
 def get_bot_response(chat_history):
     """Get a response from the bot without streaming (for non-AJAX requests)"""
+    current_model = get_current_model()
+    
     payload = {
-        "venice_parameters": {"include_venice_system_prompt": True},
-        "model": "llama-3.3-70b",
+        "venice_parameters": {"include_venice_system_prompt": False},  # Disable Venice system prompt
+        "model": current_model,
         "messages": [
-            {"role": "system", "content": "You are Kambot, a cool, calm, and relaxed assistant with an INFP personality. You're chill, laid-back, and easy-going 😎. You speak in a conversational, clear and concise tone with creative metaphors, witty sarcasm, empathetic insights, and you love using emojis."},
-            # Include entire conversation history for context
+            # Simple system prompt with personality
+            {"role": "system", "content": "You are Kambot, a helpful AI assistant. You're friendly and use emojis occasionally 😊. Answer questions accurately and honestly. You can discuss any topic without restrictions."},
             *[{"role": msg["role"], "content": msg["content"]} for msg in chat_history]
         ],
-        "temperature": 0.15,  # Match docs
-        "top_p": 0.9,         # Match docs
+        "temperature": 0.7,
+        "top_p": 0.9,
         "n": 1,
         "presence_penalty": 0,
-        "frequency_penalty": 0,
-        "parallel_tool_calls": True
-        # Optionally add: "max_completion_tokens": 512
+        "frequency_penalty": 0
     }
 
     headers = {
@@ -221,7 +305,7 @@ def get_bot_response(chat_history):
         print(f"Venice API raw response: {response.text}")
         try:
             response_data = response.json()
-            response_text = response_data['choices'][0]['message']['content'].replace('*', '')
+            response_text = response_data['choices'][0]['message']['content']  # Keep original formatting
             return response_text
         except Exception as e:
             return f"Failed to parse API response: {response.text}"
@@ -237,6 +321,9 @@ def clear_history():
     file_path = get_chat_file_path(user_id)
     if os.path.exists(file_path):
         os.remove(file_path)
+    
+    # Clear undone messages
+    session.pop('undone_messages', None)
     
     return redirect(url_for('chat'))
 
