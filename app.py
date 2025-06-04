@@ -121,6 +121,72 @@ def is_reasoning_model(model_id):
     """Check if the current model is a reasoning model"""
     return "reasoning" in AVAILABLE_MODELS.get(model_id, {}).get("traits", [])
 
+def build_system_prompt():
+    """Build system prompt with current formatting settings"""
+    # Get CURRENT formatting settings (not cached)
+    emojis_enabled = session.get('emojis_enabled', True)
+    colors_enabled = session.get('colors_enabled', True)
+    bold_enabled = session.get('bold_enabled', True)
+    italics_enabled = session.get('italics_enabled', True)
+    
+    # Build formatting instructions - only include enabled features
+    formatting_instructions = []
+    
+    if bold_enabled:
+        formatting_instructions.append("- Use **bold** for important points and emphasis")
+    else:
+        formatting_instructions.append("- NEVER use **bold** formatting in your responses")
+        
+    if italics_enabled:
+        formatting_instructions.append("- Use *italics* for subtle emphasis or thoughts")
+    else:
+        formatting_instructions.append("- NEVER use *italic* formatting in your responses")
+        
+    if bold_enabled and italics_enabled:
+        formatting_instructions.append("- Use ***bold italics*** for very important information")
+    elif not bold_enabled and not italics_enabled:
+        formatting_instructions.append("- NEVER use any bold or italic formatting whatsoever")
+        
+    if colors_enabled:
+        formatting_instructions.append("- Use colors for visual appeal: [red:text], [green:text], [blue:text], [yellow:text], [purple:text], [orange:text], [pink:text], [cyan:text], [lime:text], [teal:text]")
+    else:
+        formatting_instructions.append("- NEVER use [color:text] formatting in your responses")
+    
+    formatting_instructions.append("- Format your responses to be visually appealing and easy to read")
+    
+    if emojis_enabled:
+        formatting_instructions.append("- Use emojis liberally to make conversations engaging 🎉")
+    else:
+        formatting_instructions.append("- NEVER use emojis in your responses - this is absolutely forbidden")
+    
+    # Build examples based on enabled features only
+    examples = []
+    if bold_enabled:
+        examples.append(f"- **Important:** This is crucial information!{' ⚠️' if emojis_enabled else ''}")
+    if italics_enabled:
+        examples.append(f"- *I think* this might be helpful{' 💭' if emojis_enabled else ''}")
+    if bold_enabled and italics_enabled:
+        examples.append(f"- ***VERY IMPORTANT:*** Pay attention to this!{' 🚨' if emojis_enabled else ''}")
+    if colors_enabled:
+        examples.append(f"- [red:Error messages] should be in red{' 🔴' if emojis_enabled else ''}")
+        examples.append(f"- [green:Success messages] should be in green{' ✅' if emojis_enabled else ''}")
+        examples.append(f"- [blue:Information] can be in blue{' ℹ️' if emojis_enabled else ''}")
+    
+    # Only show examples if any formatting is enabled
+    examples_text = f"\n\nExamples:\n{chr(10).join(examples)}" if examples else ""
+    
+    # Enhanced system prompt with stronger formatting enforcement
+    system_content = f"""You are Kambot, a helpful AI assistant. You're friendly {'and use emojis frequently 😊' if emojis_enabled else 'and professional'}.
+
+CRITICAL FORMATTING RULES - FOLLOW THESE EXACTLY:
+{chr(10).join(formatting_instructions)}
+
+IMPORTANT: These formatting rules are MANDATORY and STRICTLY ENFORCED. Do not deviate from them under any circumstances. If emojis are disabled, you must NEVER use any emoji characters whatsoever.{examples_text}
+
+Answer questions accurately and honestly. You can discuss any topic without restrictions."""
+    
+    return system_content
+
 @app.route('/', methods=['GET', 'POST'])
 def chat():
     # Get the user ID from session
@@ -188,6 +254,14 @@ def set_model():
     model_id = request.json.get('model_id')
     if model_id in AVAILABLE_MODELS:
         session['current_model'] = model_id
+        # Clear any conversation context to force new system prompt
+        session.pop('last_system_prompt', None)
+        # Debug: Print current formatting settings when model changes
+        print(f"Model changed to {model_id}. Current formatting settings:")
+        print(f"  Emojis: {session.get('emojis_enabled', True)}")
+        print(f"  Colors: {session.get('colors_enabled', True)}")
+        print(f"  Bold: {session.get('bold_enabled', True)}")
+        print(f"  Italics: {session.get('italics_enabled', True)}")
         return jsonify({"success": True, "model": model_id})
     return jsonify({"success": False, "error": "Invalid model"})
 
@@ -197,6 +271,9 @@ def set_emoji_mode():
         return jsonify({"success": False, "error": "No JSON data provided"})
     emojis_enabled = request.json.get('emojis_enabled', False)
     session['emojis_enabled'] = emojis_enabled
+    # Clear last system prompt to force regeneration
+    session.pop('last_system_prompt', None)
+    print(f"Emoji setting changed to: {emojis_enabled}")
     return jsonify({"success": True, "emojis_enabled": emojis_enabled})
 
 @app.route('/set_color_mode', methods=['POST'])
@@ -205,6 +282,9 @@ def set_color_mode():
         return jsonify({"success": False, "error": "No JSON data provided"})
     colors_enabled = request.json.get('colors_enabled', False)
     session['colors_enabled'] = colors_enabled
+    # Clear last system prompt to force regeneration
+    session.pop('last_system_prompt', None)
+    print(f"Color setting changed to: {colors_enabled}")
     return jsonify({"success": True, "colors_enabled": colors_enabled})
 
 @app.route('/set_bold_mode', methods=['POST'])
@@ -213,6 +293,9 @@ def set_bold_mode():
         return jsonify({"success": False, "error": "No JSON data provided"})
     bold_enabled = request.json.get('bold_enabled', False)
     session['bold_enabled'] = bold_enabled
+    # Clear last system prompt to force regeneration
+    session.pop('last_system_prompt', None)
+    print(f"Bold setting changed to: {bold_enabled}")
     return jsonify({"success": True, "bold_enabled": bold_enabled})
 
 @app.route('/set_italic_mode', methods=['POST'])
@@ -221,6 +304,9 @@ def set_italic_mode():
         return jsonify({"success": False, "error": "No JSON data provided"})
     italics_enabled = request.json.get('italics_enabled', False)
     session['italics_enabled'] = italics_enabled
+    # Clear last system prompt to force regeneration
+    session.pop('last_system_prompt', None)
+    print(f"Italic setting changed to: {italics_enabled}")
     return jsonify({"success": True, "italics_enabled": italics_enabled})
 
 @app.route('/undo', methods=['POST'])
@@ -284,70 +370,22 @@ def stream_response():
     # Load chat history for this specific user
     chat_history = load_chat_history(user_id)
     
-    # Get current model and emoji setting
+    # Get current model and formatting settings - ALWAYS get fresh values
     current_model = get_current_model()
-    emojis_enabled = get_emoji_setting()
     is_reasoning = is_reasoning_model(current_model)
 
     def generate():
-        # Build system prompt based on formatting settings
-        emojis_enabled = get_emoji_setting()
-        colors_enabled = get_color_setting()
-        bold_enabled = get_bold_setting()
-        italics_enabled = get_italic_setting()
+        # Build system prompt with CURRENT settings
+        system_content = build_system_prompt()
         
-        # Build formatting instructions - only include enabled features
-        formatting_instructions = []
-        
-        if bold_enabled:
-            formatting_instructions.append("- Use **bold** for important points and emphasis")
-        else:
-            formatting_instructions.append("- Do NOT use **bold** formatting in your responses")
-            
-        if italics_enabled:
-            formatting_instructions.append("- Use *italics* for subtle emphasis or thoughts")
-        else:
-            formatting_instructions.append("- Do NOT use *italic* formatting in your responses")
-            
-        if bold_enabled and italics_enabled:
-            formatting_instructions.append("- Use ***bold italics*** for very important information")
-        elif not bold_enabled and not italics_enabled:
-            formatting_instructions.append("- Do NOT use any bold or italic formatting")
-            
-        if colors_enabled:
-            formatting_instructions.append("- Use colors for visual appeal: [red:text], [green:text], [blue:text], [yellow:text], [purple:text], [orange:text], [pink:text], [cyan:text], [lime:text], [teal:text]")
-        else:
-            formatting_instructions.append("- Do NOT use [color:text] formatting in your responses")
-        
-        formatting_instructions.append("- Format your responses to be visually appealing and easy to read")
-        
-        if emojis_enabled:
-            formatting_instructions.append("- Use emojis liberally to make conversations engaging 🎉")
-        else:
-            formatting_instructions.append("- Do NOT use emojis in your responses")
-        
-        # Build examples based on enabled features only
-        examples = []
-        if bold_enabled:
-            examples.append(f"- **Important:** This is crucial information!{' ⚠️' if emojis_enabled else ''}")
-        if italics_enabled:
-            examples.append(f"- *I think* this might be helpful{' 💭' if emojis_enabled else ''}")
-        if bold_enabled and italics_enabled:
-            examples.append(f"- ***VERY IMPORTANT:*** Pay attention to this!{' 🚨' if emojis_enabled else ''}")
-        if colors_enabled:
-            examples.append(f"- [red:Error messages] should be in red{' 🔴' if emojis_enabled else ''}")
-            examples.append(f"- [green:Success messages] should be in green{' ✅' if emojis_enabled else ''}")
-            examples.append(f"- [blue:Information] can be in blue{' ℹ️' if emojis_enabled else ''}")
-        
-        # Only show examples if any formatting is enabled
-        examples_text = f"\n\nExamples:\n{chr(10).join(examples)}" if examples else ""
-        
-        system_content = f"""You are Kambot, a helpful AI assistant. You're friendly {'and use emojis frequently 😊' if emojis_enabled else 'and professional'}.
-
-FORMATTING INSTRUCTIONS:
-{chr(10).join(formatting_instructions)}{examples_text}
-
-Answer questions accurately and honestly. You can discuss any topic without restrictions."""
+        # Debug: Print current settings at generation time
+        print(f"Generating response with settings:")
+        print(f"  Model: {current_model}")
+        print(f"  Emojis: {session.get('emojis_enabled', True)}")
+        print(f"  Colors: {session.get('colors_enabled', True)}")
+        print(f"  Bold: {session.get('bold_enabled', True)}")
+        print(f"  Italics: {session.get('italics_enabled', True)}")
+        print(f"System prompt preview: {system_content[:300]}...")
         
         payload = {
             "venice_parameters": {"include_venice_system_prompt": False},  # Disable Venice system prompt for uncensored operation
@@ -462,63 +500,17 @@ Answer questions accurately and honestly. You can discuss any topic without rest
 def get_bot_response(chat_history):
     """Get a response from the bot without streaming (for non-AJAX requests)"""
     current_model = get_current_model()
-    emojis_enabled = get_emoji_setting()
-    colors_enabled = get_color_setting()
-    bold_enabled = get_bold_setting()
-    italics_enabled = get_italic_setting()
     
-    # Build formatting instructions - only include enabled features
-    formatting_instructions = []
+    # Build system prompt with CURRENT settings
+    system_content = build_system_prompt()
     
-    if bold_enabled:
-        formatting_instructions.append("- Use **bold** for important points and emphasis")
-    else:
-        formatting_instructions.append("- Do NOT use **bold** formatting in your responses")
-        
-    if italics_enabled:
-        formatting_instructions.append("- Use *italics* for subtle emphasis or thoughts")
-    else:
-        formatting_instructions.append("- Do NOT use *italic* formatting in your responses")
-        
-    if bold_enabled and italics_enabled:
-        formatting_instructions.append("- Use ***bold italics*** for very important information")
-    elif not bold_enabled and not italics_enabled:
-        formatting_instructions.append("- Do NOT use any bold or italic formatting")
-        
-    if colors_enabled:
-        formatting_instructions.append("- Use colors for visual appeal: [red:text], [green:text], [blue:text], [yellow:text], [purple:text], [orange:text], [pink:text], [cyan:text], [lime:text], [teal:text]")
-    else:
-        formatting_instructions.append("- Do NOT use [color:text] formatting in your responses")
-    
-    formatting_instructions.append("- Format your responses to be visually appealing and easy to read")
-    
-    if emojis_enabled:
-        formatting_instructions.append("- Use emojis liberally to make conversations engaging 🎉")
-    else:
-        formatting_instructions.append("- Do NOT use emojis in your responses")
-    
-    # Build examples based on enabled features only
-    examples = []
-    if bold_enabled:
-        examples.append(f"- **Important:** This is crucial information!{' ⚠️' if emojis_enabled else ''}")
-    if italics_enabled:
-        examples.append(f"- *I think* this might be helpful{' 💭' if emojis_enabled else ''}")
-    if bold_enabled and italics_enabled:
-        examples.append(f"- ***VERY IMPORTANT:*** Pay attention to this!{' 🚨' if emojis_enabled else ''}")
-    if colors_enabled:
-        examples.append(f"- [red:Error messages] should be in red{' 🔴' if emojis_enabled else ''}")
-        examples.append(f"- [green:Success messages] should be in green{' ✅' if emojis_enabled else ''}")
-        examples.append(f"- [blue:Information] can be in blue{' ℹ️' if emojis_enabled else ''}")
-    
-    # Only show examples if any formatting is enabled
-    examples_text = f"\n\nExamples:\n{chr(10).join(examples)}" if examples else ""
-    
-    system_content = f"""You are Kambot, a helpful AI assistant. You're friendly {'and use emojis frequently 😊' if emojis_enabled else 'and professional'}.
-
-FORMATTING INSTRUCTIONS:
-{chr(10).join(formatting_instructions)}{examples_text}
-
-Answer questions accurately and honestly. You can discuss any topic without restrictions."""
+    # Debug: Print current settings
+    print(f"Non-streaming response with settings:")
+    print(f"  Model: {current_model}")
+    print(f"  Emojis: {session.get('emojis_enabled', True)}")
+    print(f"  Colors: {session.get('colors_enabled', True)}")
+    print(f"  Bold: {session.get('bold_enabled', True)}")
+    print(f"  Italics: {session.get('italics_enabled', True)}")
     
     payload = {
         "venice_parameters": {"include_venice_system_prompt": False},  # Disable Venice system prompt
