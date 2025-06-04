@@ -1099,6 +1099,9 @@
             // Model selection
             modelSelect.addEventListener('change', function() {
                 const selectedModel = this.value;
+                const originalInfo = modelInfo.textContent;
+                modelInfo.textContent = 'Updating model...';
+                
                 fetch('/set_model', {
                     method: 'POST',
                     headers: {
@@ -1110,7 +1113,42 @@
                 .then(data => {
                     if (data.success) {
                         modelInfo.textContent = `Using ${this.options[this.selectedIndex].text}`;
+                        
+                        // Show a brief notification that formatting settings will apply to next messages
+                        const tempNotification = document.createElement('div');
+                        tempNotification.style.cssText = `
+                            position: fixed;
+                            top: 80px;
+                            right: 20px;
+                            background: #10a37f;
+                            color: white;
+                            padding: 12px 16px;
+                            border-radius: 8px;
+                            font-size: 14px;
+                            z-index: 1001;
+                            opacity: 0;
+                            transition: opacity 0.3s ease;
+                        `;
+                        tempNotification.textContent = 'Model updated! Formatting settings will apply to new messages.';
+                        document.body.appendChild(tempNotification);
+                        
+                        // Animate in
+                        setTimeout(() => tempNotification.style.opacity = '1', 10);
+                        
+                        // Remove after 3 seconds
+                        setTimeout(() => {
+                            tempNotification.style.opacity = '0';
+                            setTimeout(() => tempNotification.remove(), 300);
+                        }, 3000);
+                        
+                    } else {
+                        modelInfo.textContent = originalInfo;
+                        console.error('Failed to update model:', data.error);
                     }
+                })
+                .catch(error => {
+                    modelInfo.textContent = originalInfo;
+                    console.error('Error updating model:', error);
                 });
             });
             
@@ -1605,21 +1643,79 @@
                 button.textContent = isEnabled ? enabledText : disabledText;
             }
             
-            // Helper function to update status indicator with null checks
+            // Enhanced status update function with visual feedback
             function updateStatusIndicator(statusElement, isEnabled) {
                 if (!statusElement) {
                     console.error('Status element not found');
                     return;
                 }
+                
+                // Add flash effect to show the change
+                statusElement.style.transition = 'all 0.2s ease';
+                statusElement.style.transform = 'scale(1.1)';
+                
                 statusElement.textContent = isEnabled ? 'ON' : 'OFF';
                 statusElement.className = isEnabled ? 'button-status status-on' : 'button-status status-off';
+                
+                // Reset scale after animation
+                setTimeout(() => {
+                    statusElement.style.transform = 'scale(1)';
+                }, 200);
+                
+                console.log(`Updated ${statusElement.id}: ${isEnabled ? 'ON' : 'OFF'}`);
+                
+                // Show notification about the change
+                showSettingChangeNotification(statusElement.id, isEnabled);
             }
             
-            // Emoji toggle functionality with better error handling
+            // Function to show setting change notifications
+            function showSettingChangeNotification(settingId, isEnabled) {
+                const settingNames = {
+                    'emoji-status': 'Emojis',
+                    'color-status': 'Colors', 
+                    'bold-status': 'Bold formatting',
+                    'italic-status': 'Italic formatting'
+                };
+                
+                const settingName = settingNames[settingId] || 'Setting';
+                const status = isEnabled ? 'enabled' : 'disabled';
+                
+                const notification = document.createElement('div');
+                notification.style.cssText = `
+                    position: fixed;
+                    top: 80px;
+                    right: 20px;
+                    background: ${isEnabled ? '#22c55e' : '#ef4444'};
+                    color: white;
+                    padding: 12px 16px;
+                    border-radius: 8px;
+                    font-size: 14px;
+                    font-weight: 500;
+                    z-index: 1001;
+                    opacity: 0;
+                    transition: opacity 0.3s ease;
+                    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+                `;
+                notification.textContent = `${settingName} ${status} - applies to new messages`;
+                document.body.appendChild(notification);
+                
+                // Animate in
+                setTimeout(() => notification.style.opacity = '1', 10);
+                
+                // Remove after 3 seconds
+                setTimeout(() => {
+                    notification.style.opacity = '0';
+                    setTimeout(() => notification.remove(), 300);
+                }, 3000);
+            }
+            
+            // Emoji toggle functionality with immediate feedback
             if (emojiToggleButton) {
                 emojiToggleButton.addEventListener('click', function() {
                     emojisEnabled = !emojisEnabled;
                     updateStatusIndicator(emojiStatus, emojisEnabled);
+                    
+                    console.log(`Emoji button clicked - new state: ${emojisEnabled}`);
                     
                     fetch('/set_emoji_mode', {
                         method: 'POST',
@@ -1630,6 +1726,7 @@
                     })
                     .then(response => response.json())
                     .then(data => {
+                        console.log('Emoji setting response:', data);
                         if (!data.success) {
                             console.error('Failed to update emoji setting:', data.error);
                             emojisEnabled = !emojisEnabled;
@@ -1644,11 +1741,13 @@
                 });
             }
             
-            // Color toggle functionality with better error handling
+            // Color toggle functionality with immediate feedback
             if (colorToggleButton) {
                 colorToggleButton.addEventListener('click', function() {
                     colorsEnabled = !colorsEnabled;
                     updateStatusIndicator(colorStatus, colorsEnabled);
+                    
+                    console.log(`Color button clicked - new state: ${colorsEnabled}`);
                     
                     fetch('/set_color_mode', {
                         method: 'POST',
@@ -1659,6 +1758,7 @@
                     })
                     .then(response => response.json())
                     .then(data => {
+                        console.log('Color setting response:', data);
                         if (!data.success) {
                             console.error('Failed to update color setting:', data.error);
                             colorsEnabled = !colorsEnabled;
@@ -1672,11 +1772,14 @@
                     });
                 });
             }
-            // Bold toggle functionality with better error handling
+
+            // Bold toggle functionality with immediate feedback
             if (boldToggleButton) {
                 boldToggleButton.addEventListener('click', function() {
                     boldEnabled = !boldEnabled;
                     updateStatusIndicator(boldStatus, boldEnabled);
+                    
+                    console.log(`Bold button clicked - new state: ${boldEnabled}`);
                     
                     fetch('/set_bold_mode', {
                         method: 'POST',
@@ -1687,6 +1790,7 @@
                     })
                     .then(response => response.json())
                     .then(data => {
+                        console.log('Bold setting response:', data);
                         if (!data.success) {
                             console.error('Failed to update bold setting:', data.error);
                             boldEnabled = !boldEnabled;
@@ -1700,21 +1804,25 @@
                     });
                 });
             }
-            // Italic toggle functionality with better error handling
+
+            // Italic toggle functionality with immediate feedback
             if (italicToggleButton) {
                 italicToggleButton.addEventListener('click', function() {
                     italicsEnabled = !italicsEnabled;
                     updateStatusIndicator(italicStatus, italicsEnabled);
                     
+                    console.log(`Italic button clicked - new state: ${italicsEnabled}`);
+                    
                     fetch('/set_italic_mode', {
                         method: 'POST',
                         headers: {
-                          'Content-Type': 'application/json',
+                            'Content-Type': 'application/json',
                         },
                         body: JSON.stringify({ italics_enabled: italicsEnabled })
                     })
                     .then(response => response.json())
                     .then(data => {
+                        console.log('Italic setting response:', data);
                         if (!data.success) {
                             console.error('Failed to update italic setting:', data.error);
                             italicsEnabled = !italicsEnabled;
