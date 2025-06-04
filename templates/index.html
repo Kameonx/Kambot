@@ -5,124 +5,469 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Kambot</title>
     <style>
-        body {
+        * {
             margin: 0;
             padding: 0;
-            min-height: 100vh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            background: #1a1a1a;
-            color: white;
-            font-family: Arial, sans-serif;
+            box-sizing: border-box;
         }
         
-        .container {
-            padding: 40px;
-            background: #2d2d2d;
-            border-radius: 15px;
-            max-width: 800px;
-            width: 100%;
-            box-shadow: 0 0 30px rgba(0,0,0,0.3);
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+            background: #1a1a1a;
+            color: #ffffff;
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+        }
+        
+        /* Sidebar Styles */
+        .sidebar {
+            width: 280px;
+            background: #202123;
+            border-right: 1px solid #363739;
             display: flex;
             flex-direction: column;
-            height: 80vh;
+            padding: 20px;
+            gap: 15px;
+            overflow-y: auto;
+            transition: margin-left 0.3s ease;
+            position: fixed; /* Change to fixed positioning */
+            top: 0;
+            left: 0;
+            height: 100vh;
+            z-index: 1000;
+            box-shadow: 2px 0 10px rgba(0, 0, 0, 0.3); /* Add shadow for better visibility */
         }
         
-        .chat-header {
-            text-align: center;
+        .sidebar.collapsed {
+            margin-left: -280px;
+        }
+        
+        .sidebar-toggle {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            width: 40px;
+            height: 40px;
+            background: #2a2b2e;
+            border: 1px solid #404142;
+            border-radius: 8px;
+            color: #ffffff;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            transition: all 0.3s ease;
+            z-index: 1000;
+        }
+        
+        .sidebar-toggle:hover {
+            background: #353639;
+            border-color: #565760;
+        }
+        
+        .sidebar-toggle.sidebar-open {
+            left: 300px;
+        }
+        
+        .sidebar-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        
+        .sidebar-header h1 {
+            font-size: 24px;
+            font-weight: 600;
+            color: #ffffff;
+        }
+        
+        .model-section {
+            background: #2a2b2e;
+            border-radius: 12px;
+            padding: 16px;
+            border: 1px solid #404142;
+        }
+        
+        .model-section h3 {
+            font-size: 14px;
+            font-weight: 600;
+            color: #ffffff;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .model-select {
+            width: 100%;
+            background: #1a1a1a;
+            border: 1px solid #404142;
+            border-radius: 8px;
+            color: #ffffff;
+            padding: 10px 12px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .model-select:hover {
+            border-color: #10a37f;
+            background: #1e1e1e;
+        }
+        
+        .model-select:focus {
+            outline: none;
+            border-color: #10a37f;
+            box-shadow: 0 0 0 3px rgba(16, 163, 127, 0.1);
+        }
+        
+        .model-info {
+            font-size: 12px;
+            color: #8e8ea0;
+            margin-top: 8px;
+        }
+        
+        .sidebar-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        
+        .sidebar-button {
+            width: 100%;
+            padding: 12px 16px;
+            border: 1px solid #404142;
+            border-radius: 8px;
+            background: #2a2b2e;
+            color: #ffffff;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        
+        .sidebar-button:hover {
+            background: #353639;
+            border-color: #565760;
+        }
+        
+        .sidebar-button:active {
+            transform: translateY(1px);
+        }
+        
+        .sidebar-button.danger {
+            border-color: #d73a49;
+            color: #ff6b6b;
+        }
+        
+        .sidebar-button.danger:hover {
+            background: #2d1b1f;
+            border-color: #ff6b6b;
+        }
+        
+        .sidebar-button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            pointer-events: none;
+        }
+        
+        /* Donation Section */
+        .donation-section {
+            background: #2a2b2e;
+            border-radius: 12px;
+            padding: 16px;
+            border: 1px solid #404142;
+            margin-top: auto;
+        }
+        
+        .donation-section h3 {
+            font-size: 14px;
+            font-weight: 600;
+            color: #ffffff;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .donation-section p {
+            font-size: 12px;
+            color: #8e8ea0;
+            line-height: 1.4;
+            margin-bottom: 8px;
+        }
+        
+        .donation-section a {
+            color: #10a37f;
+            text-decoration: none;
+            font-weight: 500;
+        }
+        
+        .donation-section a:hover {
+            color: #0d8f6a;
+            text-decoration: underline;
+        }
+        
+        /* Custom Modal Styles */
+        .custom-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+        }
+        
+        .custom-modal.show {
+            display: flex;
+        }
+        
+        .modal-content {
+            background: #2a2b2e;
+            border-radius: 12px;
+            padding: 24px;
+            border: 1px solid #404142;
+            max-width: 400px;
+            width: 90%;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+        }
+        
+        .modal-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #ffffff;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .modal-message {
+            font-size: 14px;
+            color: #8e8ea0;
+            line-height: 1.5;
             margin-bottom: 20px;
+        }
+        
+        .modal-buttons {
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+        }
+        
+        .modal-button {
+            padding: 10px 20px;
+            border: 1px solid #404142;
+            border-radius: 8px;
+            background: #2a2b2e;
+            color: #ffffff;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .modal-button:hover {
+            background: #353639;
+            border-color: #565760;
+        }
+        
+        .modal-button.danger {
+            border-color: #d73a49;
+            color: #ff6b6b;
+        }
+        
+        .modal-button.danger:hover {
+            background: #2d1b1f;
+            border-color: #ff6b6b;
+        }
+        
+        /* Main Chat Area */
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: #212121;
+            height: 100vh;
+            transition: margin-left 0.3s ease;
+        }
+        
+        .main-content.sidebar-collapsed {
+            margin-left: -100px; /* Reduced from -280px to make it less obstructive */
+        }
+        
+        /* Add overlay effect when sidebar is open */
+        .sidebar-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.3);
+            z-index: 999;
+            display: none;
+            transition: opacity 0.3s ease;
+        }
+        
+        .sidebar-overlay.show {
+            display: block;
+        }
+        
+        .chat-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            max-width: 50%;
+            margin: 0 auto;
+            width: 100%;
+            padding: 20px;
+            gap: 20px;
+            padding-top: 80px;
         }
         
         .chat-history {
-            flex-grow: 1;
+            flex: 1;
             overflow-y: auto;
-            margin-bottom: 20px;
-            background: #353535;
-            padding: 15px;
-            border-radius: 10px;
+            padding: 20px;
+            background: #2a2a2a;
+            border-radius: 12px;
+            border: 1px solid #404040;
             position: relative;
         }
         
         .message {
-            margin-bottom: 15px;
-            padding: 10px;
-            border-radius: 8px;
+            margin-bottom: 20px;
+            padding: 16px;
+            border-radius: 12px;
             position: relative;
+            max-width: 85%;
+            word-wrap: break-word;
         }
         
         .user-message {
-            background: #2a4365;
-            align-self: flex-end;
+            background: linear-gradient(135deg, #10a37f, #0d8f6a);
+            margin-left: auto;
+            color: #ffffff;
+            box-shadow: 0 2px 10px rgba(16, 163, 127, 0.3);
         }
         
         .bot-message {
-            background: #404040;
+            background: #363636;
+            border: 1px solid #505050;
+            color: #ffffff;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+        }
+        
+        .message-role {
+            font-weight: 600;
+            font-size: 14px;
+            margin-bottom: 8px;
+            opacity: 0.9;
+        }
+        
+        .message-content {
+            line-height: 1.6;
+            font-size: 15px;
+            white-space: pre-wrap;
         }
         
         .input-area {
+            background: #2a2a2a;
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid #404040;
+        }
+        
+        .input-row {
             display: flex;
-            flex-direction: column;
-            gap: 10px;
+            align-items: flex-end;
+            gap: 12px;
         }
         
         textarea {
-            padding: 12px;
-            border: none;
-            border-radius: 5px;
+            flex: 1;
+            padding: 16px;
+            border: 1px solid #404040;
+            border-radius: 10px;
             font-size: 16px;
-            background: #353535;
-            color: white;
+            background: #1a1a1a;
+            color: #ffffff;
             resize: none;
-            min-height: 50px;
-            max-height: 120px;
-            line-height: 1.4;
+            min-height: 56px;
+            max-height: 150px;
+            line-height: 1.5;
             font-family: inherit;
-            width: 100%;
-            box-sizing: border-box;
+            transition: border-color 0.2s ease;
         }
         
-        .buttons-row {
-            display: flex;
-            justify-content: space-between;
+        textarea:focus {
+            outline: none;
+            border-color: #10a37f;
+            box-shadow: 0 0 0 3px rgba(16, 163, 127, 0.1);
         }
         
-        button {
-            padding: 12px 20px;
-            border: none;
-            border-radius: 5px;
-            font-size: 16px;
-            cursor: pointer;
-            transition: background-color 0.3s;
-            white-space: nowrap;
-            min-width: 80px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+        textarea::placeholder {
+            color: #8e8ea0;
         }
         
         .send-button {
-            background: #50fa7b;
-            color: #1a1a1a;
-            transition: all 0.3s ease;
+            padding: 16px 24px;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            background: linear-gradient(135deg, #10a37f, #0d8f6a);
+            color: #ffffff;
+            box-shadow: 0 2px 10px rgba(16, 163, 127, 0.3);
+            min-width: 100px;
+        }
+        
+        .send-button:hover {
+            background: linear-gradient(135deg, #0d8f6a, #0a7356);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 15px rgba(16, 163, 127, 0.4);
+        }
+        
+        .send-button:active {
+            transform: translateY(0);
+        }
+        
+        .send-button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            pointer-events: none;
         }
         
         .loading {
             background: #2c8c44;
             color: rgba(255, 255, 255, 0.8);
-            pointer-events: none;
         }
         
         .spinner {
             display: none;
-            vertical-align: middle;
-            margin-left: 5px;
             width: 18px;
             height: 18px;
-            border: 3px solid rgba(255, 255, 255, 0.3);
+            border: 2px solid rgba(255, 255, 255, 0.3);
             border-radius: 50%;
             border-top-color: white;
-            animation: spin 1s ease-in-out infinite;
+            animation: spin 1s linear infinite;
         }
         
         .loading .spinner {
@@ -133,68 +478,13 @@
             to { transform: rotate(360deg); }
         }
         
-        .message-role {
-            font-weight: bold;
-            margin-bottom: 5px;
-        }
-        
-        .message-content {
-            white-space: pre-wrap;
-        }
-        
         #thinking-indicator {
             display: none;
-            margin-top: 10px;
+            margin-top: 15px;
             text-align: center;
             font-style: italic;
-            color: #888;
-        }
-        
-        .dot-typing {
-          position: relative;
-          display: inline-block;
-          margin-left: 4px;
-        }
-        
-        .dot-typing::after {
-          content: "";
-          display: inline-block;
-          width: 4px;
-          height: 4px;
-          border-radius: 50%;
-          animation: dot-typing 1.5s infinite linear;
-          background-color: #888;
-          margin: 0 2px;
-        }
-        
-        @keyframes dot-typing {
-          0% { box-shadow: 4px 0 0 0 #888, 12px 0 0 0 #888; }
-          25% { box-shadow: 4px 0 0 0 transparent, 12px 0 0 0 #888; }
-          50% { box-shadow: 4px 0 0 0 #888, 12px 0 0 0 transparent; }
-          75% { box-shadow: 4px 0 0 0 transparent, 12px 0 0 0 transparent; }
-          100% { box-shadow: 4px 0 0 0 #888, 12px 0 0 0 #888; }
-        }
-        
-        .clear-button {
-            background: #ff5555;
-            color: white;
-            padding: 12px 20px;
-            font-size: 16px;
-        }
-        
-        .copy-chat-button {
-            background: #007bff;  /* Blue background */
-            border: none;
-            color: white;
-            font-size: 16px;
-            cursor: pointer;
-            padding: 12px 20px;
-            border-radius: 5px;
-        }
-        
-        .left-buttons {
-            display: flex;
-            gap: 10px;
+            color: #8e8ea0;
+            font-size: 14px;
         }
         
         .typing {
@@ -207,7 +497,7 @@
             50% { opacity: 0; }
             100% { opacity: 1; }
         }
-
+        
         /* Scrollbar styling */
         ::-webkit-scrollbar {
             width: 8px;
@@ -219,61 +509,197 @@
         }
         
         ::-webkit-scrollbar-thumb {
-            background: #4a4a4a;
+            background: #505050;
             border-radius: 10px;
         }
         
         ::-webkit-scrollbar-thumb:hover {
-            background: #555;
+            background: #606060;
         }
         
         /* Firefox scrollbar */
         * {
             scrollbar-width: thin;
-            scrollbar-color: #4a4a4a #2a2a2a;
+            scrollbar-color: #505050 #2a2a2a;
+        }
+        
+        /* Welcome message for empty chat */
+        .welcome-message {
+            text-align: center;
+            color: #8e8ea0;
+            font-size: 16px;
+            margin-top: 50px;
+        }
+        
+        .welcome-message h2 {
+            color: #ffffff;
+            margin-bottom: 10px;
+        }
+        
+        /* Mobile responsiveness */
+        @media (max-width: 768px) {
+            body {
+                flex-direction: column;
+            }
+            
+            .sidebar {
+                width: 100%;
+                height: auto;
+                padding: 15px;
+                border-right: none;
+                border-bottom: 1px solid #363739;
+                margin-left: 0;
+            }
+            
+            .sidebar.collapsed {
+                margin-left: 0;
+                margin-top: -300px;
+            }
+            
+            .sidebar-toggle {
+                top: 10px;
+                left: 10px;
+            }
+            
+            .sidebar-toggle.sidebar-open {
+                left: 10px;
+                top: 310px;
+            }
+            
+            .sidebar-buttons {
+                flex-direction: row;
+                flex-wrap: wrap;
+            }
+            
+            .sidebar-button {
+                flex: 1;
+                min-width: 120px;
+            }
+            
+            .main-content {
+                height: calc(100vh - 300px);
+                margin-left: 0;
+            }
+            
+            .main-content.sidebar-collapsed {
+                margin-left: 0;
+                margin-top: -300px;
+                height: 100vh;
+            }
+            
+            .chat-container {
+                max-width: 95%;
+                padding-top: 60px;
+            }
+            
+            .message {
+                max-width: 95%;
+            }
+            
+            .donation-section {
+                margin-top: 15px;
+            }
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="chat-header">
-            <h1>Kambot</h1>
+    <!-- Sidebar Toggle Button -->
+    <button class="sidebar-toggle" id="sidebar-toggle">☰</button>
+    
+    <!-- Sidebar Overlay -->
+    <div class="sidebar-overlay" id="sidebar-overlay"></div>
+    
+    <!-- Sidebar -->
+    <div class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <h1>🐱 Kambot</h1>
         </div>
         
-        <div class="chat-history" id="chat-history">
-            {% if chat_history %}
-                {% for message in chat_history %}
-                    <div class="message {% if message.role == 'user' %}user-message{% else %}bot-message{% endif %}">
-                        <div class="message-role">{{ "You" if message.role == 'user' else "Kambot" }}</div>
-                        <div class="message-content">{{ message.content }}</div>
-                    </div>
+        <div class="model-section">
+            <h3>🤖 Models</h3>
+            <select class="model-select" id="model-select">
+                {% for model_id, model_info in available_models.items() %}
+                    <option value="{{ model_id }}" {% if model_id == current_model %}selected{% endif %}>
+                        {{ model_info.name }}
+                    </option>
                 {% endfor %}
-            {% else %}
-                <div class="message bot-message">
-                    <div class="message-role">Kambot</div>
-                    <div class="message-content">Hey there! I'm Kambot 😼. What's on your mind?</div>
-                </div>
-            {% endif %}
-            <div id="thinking-indicator">
-                Kambot is thinking<span class="dot-typing"></span>
+            </select>
+            <div class="model-info" id="model-info">
+                Choose the AI model that best fits your needs
             </div>
         </div>
         
-        <form method="POST" class="input-area" id="chat-form">
-            <textarea name="user_query" placeholder="Type your message here..." required autofocus rows="1"></textarea>
-            <div class="buttons-row">
-                <div class="left-buttons">
-                    <button type="button" id="copy-chat-button" class="copy-chat-button">
-                        Copy Chat
-                    </button>
-                    <button type="button" class="clear-button" id="clear-button">Clear</button>
+        <div class="sidebar-buttons">
+            <button class="sidebar-button" id="copy-chat-button">
+                📋 Copy Chat
+            </button>
+            <button class="sidebar-button" id="undo-button">
+                ↶ Undo
+            </button>
+            <button class="sidebar-button" id="redo-button">
+                ↷ Redo
+            </button>
+            <button class="sidebar-button danger" id="clear-button">
+                🗑️ Clear Chat
+            </button>
+        </div>
+        
+        <div class="donation-section">
+            <h3>💝 Support</h3>
+            <p>Note: Chats will not save due to the inpersistent state of the server. Render.com is graciously hosting our web app for free, so it spins down with inactivity. Please use the 'Copy Chat' button to save the chat to your clipboard and paste it somewhere to save for now. This app does not require payment and has no ads. A donation would help and possibly one day our server instance can be upgraded! Here is a secure Stripe link to donate directly to me, which would support and validate my work:</p>
+            <p><a href="https://donate.stripe.com/3cs8zU2CPecAfw4eUU" target="_blank">Donate</a></p>
+            <p>Thank you,<br>-Kameon</p>
+        </div>
+    </div>
+    
+    <!-- Main Chat Area -->
+    <div class="main-content" id="main-content">
+        <div class="chat-container">
+            <div class="chat-history" id="chat-history">
+                {% if chat_history %}
+                    {% for message in chat_history %}
+                        <div class="message {% if message.role == 'user' %}user-message{% else %}bot-message{% endif %}">
+                            <div class="message-role">{{ "You" if message.role == 'user' else "Kambot" }}</div>
+                            <div class="message-content">{{ message.content }}</div>
+                        </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="welcome-message">
+                        <h2>Welcome to Kambot! 🐱</h2>
+                        <p>Hey there! I'm Kambot, your AI assistant 🐱. What can I help you with today?</p>
+                    </div>
+                {% endif %}
+                <div id="thinking-indicator">
+                    Kambot is thinking<span class="typing">...</span>
                 </div>
-                <button type="submit" class="send-button" id="send-button">
-                    <span id="button-text">Send</span>
-                    <span class="spinner" id="button-spinner"></span>
-                </button>
             </div>
-        </form>
+            
+            <form method="POST" class="input-area" id="chat-form">
+                <div class="input-row">
+                    <textarea name="user_query" placeholder="Type your message here... (Press Enter to send)" required autofocus rows="1"></textarea>
+                    <button type="submit" class="send-button" id="send-button">
+                        <span id="button-text">Send</span>
+                        <span class="spinner" id="button-spinner"></span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Custom Modal for Clear Chat Confirmation -->
+    <div class="custom-modal" id="clear-modal">
+        <div class="modal-content">
+            <div class="modal-title">
+                🗑️ Clear Chat History
+            </div>
+            <div class="modal-message">
+                Are you sure you want to clear the entire chat history? This action cannot be undone.
+            </div>
+            <div class="modal-buttons">
+                <button class="modal-button" id="cancel-clear">Cancel</button>
+                <button class="modal-button danger" id="confirm-clear">Clear Chat</button>
+            </div>
+        </div>
     </div>
     
     <script>
@@ -287,6 +713,106 @@
             const thinkingIndicator = document.getElementById('thinking-indicator');
             const clearButton = document.getElementById('clear-button');
             const copyChatButton = document.getElementById('copy-chat-button');
+            const undoButton = document.getElementById('undo-button');
+            const redoButton = document.getElementById('redo-button');
+            const modelSelect = document.getElementById('model-select');
+            const modelInfo = document.getElementById('model-info');
+            const sidebarToggle = document.getElementById('sidebar-toggle');
+            const sidebar = document.getElementById('sidebar');
+            const mainContent = document.getElementById('main-content');
+            const clearModal = document.getElementById('clear-modal');
+            const cancelClear = document.getElementById('cancel-clear');
+            const confirmClear = document.getElementById('confirm-clear');
+            
+            // Sidebar toggle functionality - Start with sidebar closed
+            let sidebarOpen = false;
+            
+            // Get overlay element
+            const sidebarOverlay = document.getElementById('sidebar-overlay');
+            
+            // Set initial state properly - sidebar should be collapsed by default
+            sidebar.classList.add('collapsed');
+            mainContent.classList.add('sidebar-collapsed');
+            sidebarToggle.innerHTML = '☰';
+            
+            sidebarToggle.addEventListener('click', function() {
+                console.log('Toggle clicked, current state:', sidebarOpen); // Debug log
+                sidebarOpen = !sidebarOpen;
+                
+                if (sidebarOpen) {
+                    console.log('Opening sidebar'); // Debug log
+                    sidebar.classList.remove('collapsed');
+                    mainContent.classList.remove('sidebar-collapsed');
+                    mainContent.classList.add('sidebar-open');
+                    sidebarOverlay.classList.add('show');
+                    sidebarToggle.classList.add('sidebar-open');
+                    sidebarToggle.innerHTML = '✖';
+                } else {
+                    console.log('Closing sidebar'); // Debug log
+                    sidebar.classList.add('collapsed');
+                    mainContent.classList.remove('sidebar-open');
+                    mainContent.classList.add('sidebar-collapsed');
+                    sidebarOverlay.classList.remove('show');
+                    sidebarToggle.classList.remove('sidebar-open');
+                    sidebarToggle.innerHTML = '☰';
+                }
+            });
+            
+            // Close sidebar when clicking overlay
+            sidebarOverlay.addEventListener('click', function() {
+                if (sidebarOpen) {
+                    sidebarToggle.click(); // Trigger the toggle to close
+                }
+            });
+            
+            // Model selection
+            modelSelect.addEventListener('change', function() {
+                const selectedModel = this.value;
+                fetch('/set_model', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ model_id: selectedModel })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        modelInfo.textContent = `Using ${this.options[this.selectedIndex].text}`;
+                    }
+                });
+            });
+            
+            // Undo functionality
+            undoButton.addEventListener('click', function() {
+                fetch('/undo', {
+                    method: 'POST',
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        window.location.reload(); // Refresh to show updated chat
+                    } else {
+                        alert(data.error || 'Nothing to undo');
+                    }
+                });
+            });
+            
+            // Redo functionality - Fixed to properly repost the message
+            redoButton.addEventListener('click', function() {
+                fetch('/redo', {
+                    method: 'POST',
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Directly submit the undone message to get a new AI response
+                        submitMessage(data.user_message);
+                    } else {
+                        alert(data.error || 'Nothing to redo');
+                    }
+                });
+            });
             
             // Copy full chat functionality
             copyChatButton.addEventListener('click', function() {
@@ -302,21 +828,40 @@
                 copyToClipboard(fullChatText.trim());
             });
             
-            // Clear chat button functionality
+            // Clear chat modal functionality
             clearButton.addEventListener('click', function() {
-                if (confirm('Are you sure you want to clear the chat?')) {
-                    fetch('/clear', {
-                        method: 'POST',
-                    }).then(() => {
-                        window.location.reload();
-                    });
+                clearModal.classList.add('show');
+            });
+            
+            cancelClear.addEventListener('click', function() {
+                clearModal.classList.remove('show');
+            });
+            
+            confirmClear.addEventListener('click', function() {
+                clearModal.classList.remove('show');
+                fetch('/clear', {
+                    method: 'POST',
+                }).then(() => {
+                    window.location.reload();
+                });
+            });
+            
+            // Close modal when clicking outside
+            clearModal.addEventListener('click', function(e) {
+                if (e.target === clearModal) {
+                    clearModal.classList.remove('show');
                 }
             });
             
             // Copy text to clipboard
             function copyToClipboard(text) {
                 navigator.clipboard.writeText(text).then(function() {
-                    console.log('Text copied to clipboard');
+                    // Temporary feedback
+                    const originalText = copyChatButton.textContent;
+                    copyChatButton.textContent = '✅ Copied!';
+                    setTimeout(() => {
+                        copyChatButton.textContent = originalText;
+                    }, 2000);
                 }).catch(function(err) {
                     console.error('Could not copy text: ', err);
                 });
@@ -329,12 +874,10 @@
             // Listen for user scroll events
             chatHistory.addEventListener('scroll', function() {
                 userHasScrolled = true;
-                // If user has scrolled up (isn't at bottom), disable auto-scroll
                 const isAtBottom = chatHistory.scrollHeight - chatHistory.clientHeight <= chatHistory.scrollTop + 20;
                 shouldAutoScroll = isAtBottom;
             });
             
-            // Modified scroll function to respect user preference
             function scrollToBottom() {
                 if (shouldAutoScroll && !userHasScrolled) {
                     chatHistory.scrollTop = chatHistory.scrollHeight;
@@ -369,6 +912,13 @@
             
             // Submit form via AJAX with streaming support
             function submitForm() {
+                const userMessage = textarea.value;
+                submitMessage(userMessage);
+                textarea.value = '';
+                textarea.style.height = 'auto';
+            }
+            
+            function submitMessage(userMessage) {
                 // When a new message is sent, reset scrolling behavior
                 shouldAutoScroll = true;
                 userHasScrolled = false;
@@ -379,15 +929,8 @@
                 buttonText.textContent = 'Sending...';
                 spinner.style.display = 'inline-block';
                 
-                // Get the user message
-                const userMessage = textarea.value;
-                
                 // Add user message to chat history
                 addMessageToChat('user', userMessage);
-                
-                // Clear the textarea
-                textarea.value = '';
-                textarea.style.height = 'auto';
                 
                 // Create a placeholder for the bot response with cursor
                 const botMessageDiv = document.createElement('div');
@@ -399,15 +942,12 @@
                 
                 const contentDiv = document.createElement('div');
                 contentDiv.className = 'message-content';
-                contentDiv.innerHTML = '<span class="typing">|</span>'; // Blinking cursor
+                contentDiv.innerHTML = '<span class="typing">|</span>';
                 
                 botMessageDiv.appendChild(roleDiv);
                 botMessageDiv.appendChild(contentDiv);
                 
-                // Add the placeholder message before the thinking indicator
                 chatHistory.insertBefore(botMessageDiv, thinkingIndicator);
-                
-                // Hide the thinking indicator since we're showing live typing
                 thinkingIndicator.style.display = 'none';
                 
                 scrollToBottom();
@@ -424,7 +964,6 @@
                 .then(response => response.json())
                 .then(data => {
                     if (data.streaming) {
-                        // Open an EventSource connection to get streaming data
                         return fetch('/stream', {
                             method: 'POST',
                             headers: {
@@ -435,11 +974,9 @@
                             const reader = response.body.getReader();
                             const decoder = new TextDecoder();
                             
-                            // Function to process streaming data
                             function processStream() {
                                 return reader.read().then(({ done, value }) => {
                                     if (done) {
-                                        // Remove the cursor more cleanly by setting only the text content
                                         const finalText = contentDiv.textContent.replace('|', '');
                                         contentDiv.textContent = finalText;
                                         resetButtonState();
@@ -447,7 +984,6 @@
                                     }
                                     
                                     const chunk = decoder.decode(value);
-                                    // Process SSE chunks
                                     const lines = chunk.split('\n\n');
                                     
                                     for (const line of lines) {
@@ -461,14 +997,11 @@
                                                     return;
                                                 }
                                                 
-                                                // Update the content with new text without forcing scroll
                                                 const wasAtBottom = !userHasScrolled || 
                                                     (chatHistory.scrollHeight - chatHistory.clientHeight <= chatHistory.scrollTop + 20);
                                                 
-                                                // Update content
                                                 contentDiv.innerHTML = eventData.full + '<span class="typing">|</span>';
                                                 
-                                                // Only scroll if we were already at the bottom
                                                 if (wasAtBottom) {
                                                     chatHistory.scrollTop = chatHistory.scrollHeight;
                                                 }
@@ -485,14 +1018,13 @@
                             return processStream();
                         });
                     } else {
-                        // Handle non-streaming response
                         contentDiv.textContent = data.response;
                         resetButtonState();
                     }
                 })
                 .catch(error => {
                     console.error('Error:', error);
-                    contentDiv.textContent = 'Sorry, an error occurred. Please try again.';
+                    contentDiv.textContent = 'Sorry, an error occurred. Please try again. 😅';
                     resetButtonState();
                 });
             }
@@ -515,7 +1047,6 @@
                 chatHistory.insertBefore(messageDiv, thinkingIndicator);
                 scrollToBottom();
                 
-                // Reset user scrolled flag when adding a new user message
                 if (role === 'user') {
                     userHasScrolled = false;
                     shouldAutoScroll = true;
@@ -528,12 +1059,6 @@
                 buttonText.textContent = 'Send';
                 spinner.style.display = 'none';
             }
-            
-            const originalAddMessageToChat = addMessageToChat;
-            addMessageToChat = function(role, content) {
-                originalAddMessageToChat(role, content);
-                setTimeout(() => {}, 10);
-            };
         });
     </script>
 </body>
