@@ -149,8 +149,27 @@
             transition: all 0.2s ease;
             display: flex;
             align-items: center;
-            justify-content: center;
+            justify-content: space-between;
             gap: 8px;
+        }
+        
+        .button-status {
+            font-size: 12px;
+            font-weight: 600;
+            padding: 2px 6px;
+            border-radius: 4px;
+            min-width: 30px;
+            text-align: center;
+        }
+        
+        .status-on {
+            background: #22c55e;
+            color: #ffffff;
+        }
+        
+        .status-off {
+            background: #ef4444;
+            color: #ffffff;
         }
         
         .sidebar-button:hover {
@@ -854,7 +873,20 @@
                 📋 Copy Chat
             </button>
             <button class="sidebar-button" id="emoji-toggle-button">
-                😊 Enable Emojis
+                <span>😊 Emojis</span>
+                <span class="button-status status-on" id="emoji-status">ON</span>
+            </button>
+            <button class="sidebar-button" id="color-toggle-button">
+                <span>🌈 Colors</span>
+                <span class="button-status status-on" id="color-status">ON</span>
+            </button>
+            <button class="sidebar-button" id="bold-toggle-button">
+                <span><strong>B</strong> Bold</span>
+                <span class="button-status status-on" id="bold-status">ON</span>
+            </button>
+            <button class="sidebar-button" id="italic-toggle-button">
+                <span><em>I</em> Italics</span>
+                <span class="button-status status-on" id="italic-status">ON</span>
             </button>
             <button class="sidebar-button" id="undo-button">
                 ↶ Undo
@@ -970,6 +1002,58 @@
             const cancelClear = document.getElementById('cancel-clear');
             const confirmClear = document.getElementById('confirm-clear');
             const emojiToggleButton = document.getElementById('emoji-toggle-button');
+            const colorToggleButton = document.getElementById('color-toggle-button');
+            const boldToggleButton = document.getElementById('bold-toggle-button');
+            const italicToggleButton = document.getElementById('italic-toggle-button');
+            
+            // Get status indicators
+            const emojiStatus = document.getElementById('emoji-status');
+            const colorStatus = document.getElementById('color-status');
+            const boldStatus = document.getElementById('bold-status');
+            const italicStatus = document.getElementById('italic-status');
+            
+            // Initialize formatting states from server with better error handling
+            let emojisEnabled = true;
+            let colorsEnabled = true;
+            let boldEnabled = true;
+            let italicsEnabled = true;
+            
+            // Check if formatting_settings exists and parse safely
+            try {
+                const serverSettings = JSON.parse('{{ (formatting_settings|tojson) if formatting_settings else "{}" }}');
+                
+                if (serverSettings && Object.keys(serverSettings).length > 0) {
+                    emojisEnabled = serverSettings.emojis_enabled !== undefined ? serverSettings.emojis_enabled : emojisEnabled;
+                    colorsEnabled = serverSettings.colors_enabled !== undefined ? serverSettings.colors_enabled : colorsEnabled;
+                    boldEnabled = serverSettings.bold_enabled !== undefined ? serverSettings.bold_enabled : boldEnabled;
+                    italicsEnabled = serverSettings.italics_enabled !== undefined ? serverSettings.italics_enabled : italicsEnabled;
+                    
+                    console.log('Loaded server formatting settings:', serverSettings);
+                } else {
+                    console.log('No formatting settings from server, using defaults');
+                }
+            } catch (e) {
+                console.error('Failed to parse server formatting settings:', e);
+                console.log('Using default formatting settings');
+            }
+            
+            // Initialize button states on page load
+            function initializeButtonStates() {
+                if (emojiStatus) updateStatusIndicator(emojiStatus, emojisEnabled);
+                if (colorStatus) updateStatusIndicator(colorStatus, colorsEnabled);
+                if (boldStatus) updateStatusIndicator(boldStatus, boldEnabled);
+                if (italicStatus) updateStatusIndicator(italicStatus, italicsEnabled);
+                
+                console.log('Button states initialized:', {
+                    emojis: emojisEnabled,
+                    colors: colorsEnabled,
+                    bold: boldEnabled,
+                    italics: italicsEnabled
+                });
+            }
+            
+            // Call initialization
+            initializeButtonStates();
             
             // Sidebar toggle functionality - Start with sidebar closed
             let sidebarOpen = false;
@@ -1514,6 +1598,135 @@
                 button.classList.remove('loading');
                 buttonText.textContent = 'Send';
                 spinner.style.display = 'none';
+            }
+            
+            // Helper function to update button text
+            function updateButtonText(button, isEnabled, enabledText, disabledText) {
+                button.textContent = isEnabled ? enabledText : disabledText;
+            }
+            
+            // Helper function to update status indicator with null checks
+            function updateStatusIndicator(statusElement, isEnabled) {
+                if (!statusElement) {
+                    console.error('Status element not found');
+                    return;
+                }
+                statusElement.textContent = isEnabled ? 'ON' : 'OFF';
+                statusElement.className = isEnabled ? 'button-status status-on' : 'button-status status-off';
+            }
+            
+            // Emoji toggle functionality with better error handling
+            if (emojiToggleButton) {
+                emojiToggleButton.addEventListener('click', function() {
+                    emojisEnabled = !emojisEnabled;
+                    updateStatusIndicator(emojiStatus, emojisEnabled);
+                    
+                    fetch('/set_emoji_mode', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ emojis_enabled: emojisEnabled })
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (!data.success) {
+                            console.error('Failed to update emoji setting:', data.error);
+                            emojisEnabled = !emojisEnabled;
+                            updateStatusIndicator(emojiStatus, emojisEnabled);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error updating emoji setting:', error);
+                        emojisEnabled = !emojisEnabled;
+                        updateStatusIndicator(emojiStatus, emojisEnabled);
+                    });
+                });
+            }
+            
+            // Color toggle functionality with better error handling
+            if (colorToggleButton) {
+                colorToggleButton.addEventListener('click', function() {
+                    colorsEnabled = !colorsEnabled;
+                    updateStatusIndicator(colorStatus, colorsEnabled);
+                    
+                    fetch('/set_color_mode', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ colors_enabled: colorsEnabled })
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (!data.success) {
+                            console.error('Failed to update color setting:', data.error);
+                            colorsEnabled = !colorsEnabled;
+                            updateStatusIndicator(colorStatus, colorsEnabled);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error updating color setting:', error);
+                        colorsEnabled = !colorsEnabled;
+                        updateStatusIndicator(colorStatus, colorsEnabled);
+                    });
+                });
+            }
+            // Bold toggle functionality with better error handling
+            if (boldToggleButton) {
+                boldToggleButton.addEventListener('click', function() {
+                    boldEnabled = !boldEnabled;
+                    updateStatusIndicator(boldStatus, boldEnabled);
+                    
+                    fetch('/set_bold_mode', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ bold_enabled: boldEnabled })
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (!data.success) {
+                            console.error('Failed to update bold setting:', data.error);
+                            boldEnabled = !boldEnabled;
+                            updateStatusIndicator(boldStatus, boldEnabled);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error updating bold setting:', error);
+                        boldEnabled = !boldEnabled;
+                        updateStatusIndicator(boldStatus, boldEnabled);
+                    });
+                });
+            }
+            // Italic toggle functionality with better error handling
+            if (italicToggleButton) {
+                italicToggleButton.addEventListener('click', function() {
+                    italicsEnabled = !italicsEnabled;
+                    updateStatusIndicator(italicStatus, italicsEnabled);
+                    
+                    fetch('/set_italic_mode', {
+                        method: 'POST',
+                        headers: {
+                          'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ italics_enabled: italicsEnabled })
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (!data.success) {
+                            console.error('Failed to update italic setting:', data.error);
+                            italicsEnabled = !italicsEnabled;
+                            updateStatusIndicator(italicStatus, italicsEnabled);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error updating italic setting:', error);
+                        italicsEnabled = !italicsEnabled;
+                        updateStatusIndicator(italicStatus, italicsEnabled);
+                    });
+                });
             }
         });
     </script>
