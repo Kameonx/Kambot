@@ -563,61 +563,150 @@
             }
             
             .sidebar {
-                width: 100%;
-                height: auto;
+                width: 100vw;
+                height: 100vh;
                 padding: 15px;
                 border-right: none;
-                border-bottom: 1px solid #363739;
+                border-bottom: none;
                 margin-left: 0;
+                position: fixed;
+                top: 0;
+                left: 0;
+                z-index: 1001;
+                transform: translateX(-100%);
+                transition: transform 0.3s ease;
             }
             
             .sidebar.collapsed {
                 margin-left: 0;
-                margin-top: -300px;
+                margin-top: 0;
+                transform: translateX(-100%);
+            }
+            
+            .sidebar:not(.collapsed) {
+                transform: translateX(0);
             }
             
             .sidebar-toggle {
-                top: 10px;
-                left: 10px;
+                top: 15px;
+                left: 15px;
+                z-index: 1002;
+                width: 45px;
+                height: 45px;
+                font-size: 20px;
             }
             
             .sidebar-toggle.sidebar-open {
-                left: 10px;
-                top: 310px;
+                left: 15px;
+                top: 15px;
+                background: linear-gradient(135deg, #ff6b6b, #ff8e8e);
+                border-color: #ff6b6b;
             }
             
-            .sidebar-buttons {
-                flex-direction: row;
-                flex-wrap: wrap;
-            }
-            
-            .sidebar-button {
-                flex: 1;
-                min-width: 120px;
+            .sidebar-overlay {
+                z-index: 1000;
             }
             
             .main-content {
-                height: calc(100vh - 300px);
+                height: 100vh;
                 margin-left: 0;
+                margin-top: 0;
             }
             
             .main-content.sidebar-collapsed {
                 margin-left: 0;
-                margin-top: -300px;
+                margin-top: 0;
                 height: 100vh;
             }
             
             .chat-container {
-                max-width: 95%;
-                padding-top: 60px;
+                max-width: 100%;
+                padding: 15px;
+                padding-top: 70px;
+                gap: 15px;
+            }
+            
+            .chat-history {
+                padding: 15px;
             }
             
             .message {
-                max-width: 95%;
+                max-width: 100%;
+                padding: 12px;
+            }
+            
+            .input-area {
+                padding: 15px;
+            }
+            
+            textarea {
+                min-height: 50px;
+                max-height: 120px;
+                padding: 12px;
+                font-size: 16px;
+            }
+            
+            textarea::placeholder {
+                font-size: 14px;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+            
+            .send-button {
+                padding: 12px 20px;
+                min-width: 80px;
+                font-size: 14px;
+            }
+            
+            .sidebar-buttons {
+                flex-direction: column;
+                gap: 10px;
+            }
+            
+            .sidebar-button {
+                padding: 14px 16px;
+                font-size: 16px;
             }
             
             .donation-section {
                 margin-top: 15px;
+                padding: 12px;
+            }
+            
+            .donation-section p {
+                font-size: 13px;
+            }
+            
+            .sidebar-footer {
+                padding: 12px;
+                margin-top: 12px;
+            }
+            
+            .modal-content {
+                margin: 15px;
+                width: calc(100% - 30px);
+                max-width: none;
+            }
+        }
+        
+        /* Additional mobile-specific fixes */
+        @media (max-width: 480px) {
+            .chat-container {
+                padding: 10px;
+                padding-top: 65px;
+            }
+            
+            .sidebar-header h1 {
+                font-size: 20px;
+            }
+            
+            .model-section, .donation-section {
+                padding: 12px;
+            }
+            
+            textarea::placeholder {
+                content: "Type message...";
             }
         }
     </style>
