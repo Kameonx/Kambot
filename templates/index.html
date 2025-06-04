@@ -977,7 +977,7 @@
                         </div>
                     {% endfor %}
                 {% else %}
-                    <div class="welcome-message">
+                    <div class="welcome-message" id="welcome-message">
                         <h2>Welcome to Kambot! 😼</h2>
                         <p>Hey there! I'm Kambot, your AI assistant 😸. What can I help you with today?</p>
                     </div>
@@ -1325,6 +1325,12 @@
                 // When a new message is sent, reset scrolling behavior
                 shouldAutoScroll = true;
                 userHasScrolled = false;
+                
+                // Hide welcome message when first message is sent
+                const welcomeMessage = document.getElementById('welcome-message');
+                if (welcomeMessage) {
+                    welcomeMessage.style.display = 'none';
+                }
                 
                 // Show loading state
                 button.disabled = true;
