@@ -354,16 +354,20 @@
             padding: 20px;
             gap: 20px;
             padding-top: 80px;
+            height: 100vh; /* Add explicit height */
+            overflow: hidden; /* Prevent container overflow */
         }
         
         .chat-history {
             flex: 1;
             overflow-y: auto;
+            overflow-x: hidden; /* Prevent horizontal scroll */
             padding: 20px;
             background: #2a2a2a;
             border-radius: 12px;
             border: 1px solid #404040;
             position: relative;
+            min-height: 0; /* Allow flex shrinking */
         }
         
         .message {
@@ -649,8 +653,9 @@
                 padding: 15px;
                 padding-top: 70px;
                 gap: 15px;
-                height: auto; /* Remove fixed height */
+                height: auto; /* Remove fixed height on mobile */
                 min-height: calc(100vh - 30px); /* Ensure full height */
+                overflow: visible; /* Allow natural overflow on mobile */
             }
             
             .chat-history {
@@ -730,6 +735,8 @@
                 padding: 10px;
                 padding-top: 65px;
                 padding-bottom: 20px; /* Add bottom padding */
+                height: auto; /* Ensure mobile gets auto height */
+                overflow: visible; /* Allow natural overflow */
             }
             
             .sidebar-header h1 {
@@ -750,6 +757,69 @@
                 touch-action: pan-y;
             }
         }
+        
+        /* Reasoning/Thinking Styles */
+        .thinking-section {
+            margin: 10px 0;
+        }
+        
+        .thinking-toggle {
+            width: 24px;
+            height: 24px;
+            background: #2a2b2e;
+            border: 1px solid #404040;
+            border-radius: 4px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            color: #ffffff;
+            transition: all 0.2s ease;
+            margin-bottom: 5px;
+        }
+        
+        .thinking-toggle:hover {
+            background: #333333;
+            border-color: #565760;
+            color: #ffffff;
+        }
+        
+        .thinking-caret {
+            transition: transform 0.2s ease;
+            font-size: 14px;
+            color: #ffffff !important;
+            user-select: none;
+            display: inline-block;
+            font-weight: bold;
+        }
+        
+        .thinking-caret.expanded {
+            transform: rotate(90deg);
+        }
+        
+        .thinking-content {
+            margin-top: 8px;
+            font-size: 13px;
+            line-height: 1.5;
+            color: #b0b0b0;
+            white-space: pre-wrap;
+            background: #1e1e1e;
+            border: 1px solid #404040;
+            border-radius: 6px;
+            overflow: hidden;
+            transition: all 0.3s ease;
+            opacity: 0;
+            max-height: 0;
+            padding: 0 12px;
+        }
+        
+        .thinking-content.expanded {
+            opacity: 1;
+            max-height: 500px;
+            padding: 12px;
+        }
+        
     </style>
 </head>
 <body>
@@ -818,7 +888,25 @@
                     {% for message in chat_history %}
                         <div class="message {% if message.role == 'user' %}user-message{% else %}bot-message{% endif %}">
                             <div class="message-role">{{ "You" if message.role == 'user' else "Kambot" }}</div>
-                            <div class="message-content">{{ message.content }}</div>
+                            {% if message.role != 'user' and '<think>' in message.content %}
+                                {% set thinking_matches = message.content | regex_findall('<think>(.*?)</think>', dotall=True) %}
+                                {% set main_content = message.content | regex_sub('<think>.*?</think>', '', dotall=True) | trim %}
+                                {% if thinking_matches %}
+                                    <div class="thinking-section">
+                                        <div class="thinking-toggle" onclick="toggleThinking(this)">
+                                            <span class="thinking-caret">▶</span>
+                                        </div>
+                                        <div class="thinking-content">{{ thinking_matches | join('\n') }}</div>
+                                    </div>
+                                {% endif %}
+                                <div class="message-content" data-formatted="true">{{ main_content }}</div>
+                            {% else %}
+                                {% if message.role == 'user' %}
+                                    <div class="message-content">{{ message.content }}</div>
+                                {% else %}
+                                    <div class="message-content" data-formatted="true">{{ message.content }}</div>
+                                {% endif %}
+                            {% endif %}
                         </div>
                     {% endfor %}
                 {% else %}
@@ -1072,9 +1160,8 @@
             // Submit form via AJAX with streaming support
             function submitForm() {
                 const userMessage = textarea.value;
+                // Don't clear textarea here - do it after adding message to chat
                 submitMessage(userMessage);
-                textarea.value = '';
-                textarea.style.height = 'auto';
             }
             
             function submitMessage(userMessage) {
@@ -1088,8 +1175,12 @@
                 buttonText.textContent = 'Sending...';
                 spinner.style.display = 'inline-block';
                 
-                // Add user message to chat history
+                // Add user message to chat history FIRST
                 addMessageToChat('user', userMessage);
+                
+                // THEN clear the textarea and reset its height
+                textarea.value = '';
+                textarea.style.height = 'auto';
                 
                 // Create a placeholder for the bot response with cursor
                 const botMessageDiv = document.createElement('div');
@@ -1103,7 +1194,13 @@
                 contentDiv.className = 'message-content';
                 contentDiv.innerHTML = '<span class="typing">|</span>';
                 
+                // Add thinking indicator for reasoning models
+                const thinkingIndicatorDiv = document.createElement('div');
+                thinkingIndicatorDiv.className = 'thinking-indicator';
+                thinkingIndicatorDiv.innerHTML = '<span class="thinking-emoji">🤔</span> Thinking...';
+                
                 botMessageDiv.appendChild(roleDiv);
+                botMessageDiv.appendChild(thinkingIndicatorDiv);
                 botMessageDiv.appendChild(contentDiv);
                 
                 chatHistory.insertBefore(botMessageDiv, thinkingIndicator);
@@ -1132,13 +1229,20 @@
                         }).then(response => {
                             const reader = response.body.getReader();
                             const decoder = new TextDecoder();
+                            let thinkingSection = null;
+                            let thinkingContent = null;
                             
                             function processStream() {
                                 return reader.read().then(({ done, value }) => {
                                     if (done) {
-                                        // Format the final content and remove cursor
-                                        const finalText = contentDiv.textContent.replace('|', '');
-                                        contentDiv.innerHTML = formatMessage(finalText);
+                                        // Hide thinking indicator and just remove the typing cursor
+                                        thinkingIndicatorDiv.style.display = 'none';
+                                        thinkingIndicatorDiv.classList.remove('show');
+                                        // Remove the typing cursor without reformatting
+                                        const currentContent = contentDiv.innerHTML;
+                                        if (currentContent.includes('<span class="typing">|</span>')) {
+                                            contentDiv.innerHTML = currentContent.replace('<span class="typing">|</span>', '');
+                                        }
                                         resetButtonState();
                                         return;
                                     }
@@ -1152,7 +1256,9 @@
                                                 const eventData = JSON.parse(line.substring(6));
                                                 
                                                 if (eventData.error) {
-                                                    contentDiv.textContent = eventData.full;
+                                                    thinkingIndicatorDiv.style.display = 'none';
+                                                    thinkingIndicatorDiv.classList.remove('show');
+                                                    contentDiv.innerHTML = formatMessage(eventData.full);
                                                     resetButtonState();
                                                     return;
                                                 }
@@ -1160,8 +1266,39 @@
                                                 const wasAtBottom = !userHasScrolled || 
                                                     (chatHistory.scrollHeight - chatHistory.clientHeight <= chatHistory.scrollTop + 20);
                                                 
-                                                // Format the content during streaming for bot messages
-                                                contentDiv.innerHTML = formatMessage(eventData.full) + '<span class="typing">|</span>';
+                                                // Handle reasoning models
+                                                if (eventData.is_reasoning) {
+                                                    // Show/hide thinking indicator based on thinking state
+                                                    if (eventData.is_thinking) {
+                                                        thinkingIndicatorDiv.style.display = 'flex';
+                                                        thinkingIndicatorDiv.classList.add('show');
+                                                    } else {
+                                                        thinkingIndicatorDiv.style.display = 'none';
+                                                        thinkingIndicatorDiv.classList.remove('show');
+                                                    }
+                                                    
+                                                    // Create or update thinking section
+                                                    if (eventData.thinking && !thinkingSection) {
+                                                        thinkingSection = createThinkingSection();
+                                                        botMessageDiv.insertBefore(thinkingSection, contentDiv);
+                                                        thinkingContent = thinkingSection.querySelector('.thinking-content');
+                                                        // No need to manually attach handlers - event delegation handles it
+                                                    }
+                                                
+                                                    // Update thinking content
+                                                    if (thinkingContent && eventData.thinking) {
+                                                        thinkingContent.textContent = eventData.thinking;
+                                                    }
+                                                
+                                                    // Update main content - formatting is already applied by server
+                                                    contentDiv.innerHTML = formatMessage(eventData.full) + '<span class="typing">|</span>';
+                                                } else {
+                                                    // Regular model - hide thinking indicator immediately
+                                                    thinkingIndicatorDiv.style.display = 'none';
+                                                    thinkingIndicatorDiv.classList.remove('show');
+                                                    // Update content - formatting is already applied by server
+                                                    contentDiv.innerHTML = formatMessage(eventData.full) + '<span class="typing">|</span>';
+                                                }
                                                 
                                                 if (wasAtBottom) {
                                                     chatHistory.scrollTop = chatHistory.scrollHeight;
@@ -1179,17 +1316,115 @@
                             return processStream();
                         });
                     } else {
+                        thinkingIndicatorDiv.style.display = 'none';
+                        thinkingIndicatorDiv.classList.remove('show');
                         contentDiv.textContent = data.response;
                         resetButtonState();
                     }
                 })
                 .catch(error => {
                     console.error('Error:', error);
+                    thinkingIndicatorDiv.style.display = 'none';
+                    thinkingIndicatorDiv.classList.remove('show');
                     contentDiv.textContent = 'Sorry, an error occurred. Please try again. 😅';
                     resetButtonState();
                 });
             }
             
+            // --- Add event delegation for thinking toggle clicks ---
+            chatHistory.addEventListener('click', function(e) {
+                const toggle = e.target.closest('.thinking-toggle');
+                if (toggle) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const content = toggle.parentElement.querySelector('.thinking-content');
+                    const caret = toggle.querySelector('.thinking-caret');
+                    if (content && caret) {
+                        if (content.classList.contains('expanded')) {
+                            content.classList.remove('expanded');
+                            caret.classList.remove('expanded');
+                            caret.textContent = '▶';
+                            caret.style.transform = 'rotate(0deg)';
+                        } else {
+                            content.classList.add('expanded');
+                            caret.classList.add('expanded');
+                            caret.textContent = '▶';
+                            caret.style.transform = 'rotate(90deg)';
+                        }
+                    }
+                }
+            });
+            
+            // Format existing bot messages on page load - fix timing and prevent double-formatting
+            function formatExistingMessages() {
+                const existingBotMessages = document.querySelectorAll('.message-content[data-formatted="true"]');
+                existingBotMessages.forEach((messageElement) => {
+                    // Only format if not already formatted (avoid double-formatting)
+                    if (!messageElement.hasAttribute('data-formatted-processed')) {
+                        const rawText = messageElement.textContent;
+                        // Remove any <think> tags and their content for display
+                        const cleanText = rawText.replace(/<think>.*?<\/think>/gs, '');
+                        messageElement.innerHTML = formatMessage(cleanText);
+                        messageElement.setAttribute('data-formatted-processed', 'true');
+                    }
+                });
+
+                // Hide all thinking-content by default on page load
+                const allThinkingContents = document.querySelectorAll('.thinking-content');
+                allThinkingContents.forEach(content => {
+                    content.classList.remove('expanded');
+                });
+            }
+
+            // Call formatting after a small delay to ensure DOM is ready
+            setTimeout(formatExistingMessages, 100);
+            // Also call immediately for faster initial load
+            formatExistingMessages();
+
+            // Remove all per-toggle click handler setup in initializeThinkingSections
+            function initializeThinkingSections() {
+                const allThinkingSections = document.querySelectorAll('.thinking-section');
+                allThinkingSections.forEach((section) => {
+                    const toggle = section.querySelector('.thinking-toggle');
+                    const caret = toggle ? toggle.querySelector('.thinking-caret') : null;
+                    const content = section.querySelector('.thinking-content');
+                    if (caret) {
+                        caret.style.color = '#ffffff';
+                        caret.style.fontSize = '14px';
+                        caret.style.fontWeight = 'bold';
+                        caret.textContent = '▶';
+                        caret.classList.remove('expanded');
+                    }
+                    if (content) {
+                        content.classList.remove('expanded');
+                        content.style.display = 'block';
+                    }
+                    // Remove any textContent replacement or formatting here!
+                });
+            }
+
+            // Initialize thinking sections
+            initializeThinkingSections();
+            
+            function createThinkingSection() {
+                const thinkingSection = document.createElement('div');
+                thinkingSection.className = 'thinking-section';
+
+                const thinkingToggle = document.createElement('div');
+                thinkingToggle.className = 'thinking-toggle';
+                thinkingToggle.innerHTML = '<span class="thinking-caret" style="color: #ffffff; font-size: 14px; font-weight: bold;">▶</span>';
+
+                const thinkingContent = document.createElement('div');
+                thinkingContent.className = 'thinking-content';
+                thinkingContent.style.display = 'block';
+
+                thinkingSection.appendChild(thinkingToggle);
+                thinkingSection.appendChild(thinkingContent);
+
+                // No click handler setup here!
+                return thinkingSection;
+            }
+
             function addMessageToChat(role, content) {
                 const messageDiv = document.createElement('div');
                 messageDiv.className = `message ${role === 'user' ? 'user-message' : 'bot-message'}`;
@@ -1201,14 +1436,37 @@
                 const contentDiv = document.createElement('div');
                 contentDiv.className = 'message-content';
                 
-                // Format the content if it's from the bot
-                if (role === 'assistant' || role === 'bot') {
-                    contentDiv.innerHTML = formatMessage(content);
+                // Check if this is a bot message with reasoning (contains <think> tags)
+                if ((role === 'assistant' || role === 'bot') && content.includes('<think>')) {
+                    // Extract thinking content
+                    const thinkMatches = content.match(/<think>(.*?)<\/think>/gs);
+                    const thinkingText = thinkMatches ? thinkMatches.map(match => match.replace(/<\/?think>/g, '')).join('\n') : '';
+                    
+                    // Extract main content (everything outside <think> tags)
+                    const mainContent = content.replace(/<think>.*?<\/think>/gs, '').trim();
+                    
+                    // Add thinking section if there's thinking content
+                    if (thinkingText) {
+                        const thinkingSection = createThinkingSection();
+                        const thinkingContentDiv = thinkingSection.querySelector('.thinking-content');
+                        thinkingContentDiv.textContent = thinkingText;
+                        messageDiv.appendChild(roleDiv);
+                        messageDiv.appendChild(thinkingSection);
+                    } else {
+                        messageDiv.appendChild(roleDiv);
+                    }
+                    
+                    contentDiv.innerHTML = formatMessage(mainContent);
                 } else {
-                    contentDiv.textContent = content;
+                    messageDiv.appendChild(roleDiv);
+                    // Format the content if it's from the bot
+                    if (role === 'assistant' || role === 'bot') {
+                        contentDiv.innerHTML = formatMessage(content);
+                    } else {
+                        contentDiv.textContent = content;
+                    }
                 }
                 
-                messageDiv.appendChild(roleDiv);
                 messageDiv.appendChild(contentDiv);
                 
                 chatHistory.insertBefore(messageDiv, thinkingIndicator);
@@ -1257,55 +1515,10 @@
                 buttonText.textContent = 'Send';
                 spinner.style.display = 'none';
             }
-            
-            // Emoji toggle functionality
-            let emojisEnabled = localStorage.getItem('emojisEnabled') !== null ? localStorage.getItem('emojisEnabled') === 'true' : true;
-            
-            function updateEmojiButton() {
-                if (emojisEnabled) {
-                    emojiToggleButton.textContent = '😊 Disable Emojis';
-                    emojiToggleButton.style.background = '#2c8c44';
-                    emojiToggleButton.style.borderColor = '#51cf66';
-                } else {
-                    emojiToggleButton.textContent = '😐 Enable Emojis';
-                    emojiToggleButton.style.background = '#2a2b2e';
-                    emojiToggleButton.style.borderColor = '#404142';
-                }
-            }
-            
-            // Initialize emoji button state
-            updateEmojiButton();
-            
-            emojiToggleButton.addEventListener('click', function() {
-                emojisEnabled = !emojisEnabled;
-                localStorage.setItem('emojisEnabled', emojisEnabled.toString());
-                updateEmojiButton();
-                
-                // Send the setting to the server
-                fetch('/set_emoji_mode', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ emojis_enabled: emojisEnabled })
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        console.log('Emoji mode updated:', emojisEnabled);
-                    }
-                });
-            });
-            
-            // Send initial emoji setting to server on page load
-            fetch('/set_emoji_mode', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ emojis_enabled: emojisEnabled })
-            });
         });
+    </script>
+    <script>
+        // Remove the global toggleThinking function, as event delegation now handles all toggles
     </script>
 </body>
 </html>
