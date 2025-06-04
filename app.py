@@ -11,9 +11,26 @@ from flask import Flask, render_template, request, redirect, url_for, session, j
 import requests
 import json
 import uuid
+import re
 
 app = Flask(__name__)
 app.secret_key = os.urandom(24)  # Required for session
+
+# Add regex filters to Jinja2
+def regex_findall(text, pattern, **kwargs):
+    flags = 0
+    if kwargs.get('dotall'):
+        flags |= re.DOTALL
+    return re.findall(pattern, text, flags)
+
+def regex_sub(text, pattern, replacement, **kwargs):
+    flags = 0
+    if kwargs.get('dotall'):
+        flags |= re.DOTALL
+    return re.sub(pattern, replacement, text, flags)
+
+app.jinja_env.filters['regex_findall'] = regex_findall
+app.jinja_env.filters['regex_sub'] = regex_sub
 
 # Create a directory to store user chat histories
 CHAT_DIR = 'chat_histories'
@@ -36,10 +53,10 @@ AVAILABLE_MODELS = {
     "llama-3.3-70b": {"name": "🦙 Llama 3.3 70B", "default": True, "traits": ["function_calling_default", "default"]},
     "mistral-31-24b": {"name": "💫 Mistral 3.1 24B", "traits": ["default_vision"]},
     "deepseek-coder-v2-lite": {"name": "⚡ DeepSeek Coder V2 Lite", "traits": []},
-    "deepseek-r1-671b": {"name": "🧠 DeepSeek R1 671B", "traits": ["default_reasoning"]},
+    "deepseek-r1-671b": {"name": "🧠 DeepSeek R1 671B (Reasoning)", "traits": ["default_reasoning", "reasoning"]},
     "dolphin-2.9.2-qwen2-72b": {"name": "🐬 Dolphin Qwen2 72B", "traits": ["most_uncensored"]},
     "qwen-2.5-coder-32b": {"name": "💻 Qwen 2.5 Coder 32B", "traits": ["default_code"]},
-    "qwen-2.5-qwq-32b": {"name": "🤔 Qwen 2.5 QwQ 32B", "traits": ["reasoning"]},
+    "qwen-2.5-qwq-32b": {"name": "🤔 Qwen 2.5 QwQ 32B (Reasoning)", "traits": ["reasoning"]},
     "qwen-2.5-vl": {"name": "👁️ Qwen 2.5 VL", "traits": []},
     "qwen3-235b": {"name": "🔮 Qwen3 235B", "traits": []},
     "qwen3-4b": {"name": "👾 Qwen3 4B", "traits": []},
@@ -87,6 +104,10 @@ def get_current_model():
 def get_emoji_setting():
     """Get the current emoji setting from session or default (True)"""
     return session.get('emojis_enabled', True)
+
+def is_reasoning_model(model_id):
+    """Check if the current model is a reasoning model"""
+    return "reasoning" in AVAILABLE_MODELS.get(model_id, {}).get("traits", [])
 
 @app.route('/', methods=['GET', 'POST'])
 def chat():
@@ -207,6 +228,7 @@ def stream_response():
     # Get current model and emoji setting
     current_model = get_current_model()
     emojis_enabled = get_emoji_setting()
+    is_reasoning = is_reasoning_model(current_model)
 
     def generate():
         # Build system prompt based on emoji setting
@@ -282,6 +304,9 @@ Answer questions accurately and honestly. You can discuss any topic without rest
                 timeout=60
             ) as response:
                 full_response = ""
+                in_thinking = False
+                thinking_content = ""
+                main_content = ""
                 print(f"Venice API status: {response.status_code}")
                 
                 if response.status_code != 200:
@@ -304,14 +329,49 @@ Answer questions accurately and honestly. You can discuss any topic without rest
                                     if 'choices' in json_data and len(json_data['choices']) > 0:
                                         delta = json_data['choices'][0].get('delta', {})
                                         if 'content' in delta:
-                                            content = delta['content']  # Don't remove asterisks or any formatting
+                                            content = delta['content']
                                             full_response += content
-                                            yield f"data: {json.dumps({'content': content, 'full': full_response})}\n\n"
+                                            
+                                            # Handle reasoning models with <think> tags
+                                            if is_reasoning:
+                                                # Parse thinking vs main content
+                                                temp_thinking = ""
+                                                temp_main = ""
+                                                current_text = full_response
+                                                
+                                                # Extract thinking content
+                                                import re
+                                                think_matches = re.findall(r'<think>(.*?)</think>', current_text, re.DOTALL)
+                                                if think_matches:
+                                                    temp_thinking = '\n'.join(think_matches)
+                                                
+                                                # Extract main content (everything outside <think> tags)
+                                                temp_main = re.sub(r'<think>.*?</think>', '', current_text, flags=re.DOTALL).strip()
+                                                
+                                                # Check if we're currently in an open thinking section
+                                                open_think_count = current_text.count('<think>')
+                                                close_think_count = current_text.count('</think>')
+                                                is_currently_thinking = open_think_count > close_think_count
+                                                
+                                                # If we're in an open think tag, remove the incomplete thinking content from main
+                                                if is_currently_thinking:
+                                                    # Find the last <think> and remove everything after it from main content
+                                                    last_think_pos = current_text.rfind('<think>')
+                                                    if last_think_pos != -1:
+                                                        temp_main = current_text[:last_think_pos]
+                                                        temp_main = re.sub(r'<think>.*?</think>', '', temp_main, flags=re.DOTALL).strip()
+                                                
+                                                yield f"data: {json.dumps({'content': content, 'full': temp_main, 'thinking': temp_thinking, 'is_thinking': is_currently_thinking, 'is_reasoning': True})}\n\n"
+                                            else:
+                                                # Regular model
+                                                yield f"data: {json.dumps({'content': content, 'full': full_response, 'is_reasoning': False})}\n\n"
+                                                
                             except json.JSONDecodeError as e:
                                 print(f"JSON decode error: {e}, data: '{data}'")
                                 continue
                 
                 if full_response:
+                    # Save the full response including thinking tags for reasoning models
                     chat_history.append({"role": "assistant", "content": full_response})
                     save_chat_history(user_id, chat_history)
                     
