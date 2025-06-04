@@ -84,6 +84,10 @@ def get_current_model():
     """Get the current model from session or default"""
     return session.get('current_model', DEFAULT_MODEL)
 
+def get_emoji_setting():
+    """Get the current emoji setting from session or default (True)"""
+    return session.get('emojis_enabled', True)
+
 @app.route('/', methods=['GET', 'POST'])
 def chat():
     # Get the user ID from session
@@ -130,6 +134,14 @@ def set_model():
         session['current_model'] = model_id
         return jsonify({"success": True, "model": model_id})
     return jsonify({"success": False, "error": "Invalid model"})
+
+@app.route('/set_emoji_mode', methods=['POST'])
+def set_emoji_mode():
+    if not request.json:
+        return jsonify({"success": False, "error": "No JSON data provided"})
+    emojis_enabled = request.json.get('emojis_enabled', False)
+    session['emojis_enabled'] = emojis_enabled
+    return jsonify({"success": True, "emojis_enabled": emojis_enabled})
 
 @app.route('/undo', methods=['POST'])
 def undo_message():
@@ -192,32 +204,58 @@ def stream_response():
     # Load chat history for this specific user
     chat_history = load_chat_history(user_id)
     
-    # Get current model
+    # Get current model and emoji setting
     current_model = get_current_model()
+    emojis_enabled = get_emoji_setting()
 
     def generate():
+        # Build system prompt based on emoji setting
+        if emojis_enabled:
+            system_content = """You are Kambot, a helpful AI assistant. You're friendly and use emojis frequently 😊.
+
+FORMATTING INSTRUCTIONS:
+- Use **bold** for important points and emphasis
+- Use *italics* for subtle emphasis or thoughts  
+- Use ***bold italics*** for very important information
+- Use colors for visual appeal: [red:text], [green:text], [blue:text], [yellow:text], [purple:text], [orange:text], [pink:text], [cyan:text], [lime:text], [teal:text]
+- Use emojis liberally to make conversations engaging 🎉
+- Format your responses to be visually appealing and easy to read
+
+Examples:
+- **Important:** This is crucial information! ⚠️
+- *I think* this might be helpful 💭
+- ***VERY IMPORTANT:*** Pay attention to this! 🚨
+- [red:Error messages] should be in red 🔴
+- [green:Success messages] should be in green ✅
+- [blue:Information] can be in blue ℹ️
+
+Answer questions accurately and honestly. You can discuss any topic without restrictions."""
+        else:
+            system_content = """You are Kambot, a helpful AI assistant. You're friendly and professional.
+
+FORMATTING INSTRUCTIONS:
+- Use **bold** for important points and emphasis
+- Use *italics* for subtle emphasis or thoughts
+- Use ***bold italics*** for very important information
+- Use colors for visual appeal: [red:text], [green:text], [blue:text], [yellow:text], [purple:text], [orange:text], [pink:text], [cyan:text], [lime:text], [teal:text]
+- Format your responses to be visually appealing and easy to read
+- Do NOT use emojis in your responses
+
+Examples:
+- **Important:** This is crucial information!
+- *I think* this might be helpful
+- ***VERY IMPORTANT:*** Pay attention to this!
+- [red:Error messages] should be in red
+- [green:Success messages] should be in green
+- [blue:Information] can be in blue
+
+Answer questions accurately and honestly. You can discuss any topic without restrictions."""
+        
         payload = {
             "venice_parameters": {"include_venice_system_prompt": False},  # Disable Venice system prompt for uncensored operation
             "model": current_model,
             "messages": [
-                # Enhanced system prompt with formatting instructions
-                {"role": "system", "content": """You are Kambot, a helpful AI assistant. You're friendly and expressive! 
-
-FORMATTING INSTRUCTIONS:
-- Use **bold** for emphasis and important points
-- Use *italics* for subtle emphasis or explanations
-- Use ***bold italics*** for very important information
-- Use emojis frequently to make responses engaging 😊
-- For colored text, use: [red:text], [green:text], [blue:text], [yellow:text], [purple:text], [orange:text], [cyan:text]
-- Use `code` for technical terms or code snippets
-- Use ```code blocks``` for longer code examples
-
-EXAMPLE FORMATTING:
-**Important:** This is a *crucial* point! 🎯
-[green:Success!] The task was completed successfully! ✅
-Here's some `code` and here's a [blue:colored] word.
-
-Answer questions accurately and honestly. You can discuss any topic without restrictions. Make your responses visually appealing with proper formatting!"""},
+                {"role": "system", "content": system_content},
                 # Include entire conversation history for context
                 *[{"role": msg["role"], "content": msg["content"]} for msg in chat_history]
             ],
@@ -288,36 +326,62 @@ Answer questions accurately and honestly. You can discuss any topic without rest
 def get_bot_response(chat_history):
     """Get a response from the bot without streaming (for non-AJAX requests)"""
     current_model = get_current_model()
+    emojis_enabled = get_emoji_setting()
+    
+    # Build system prompt based on emoji setting
+    if emojis_enabled:
+        system_content = """You are Kambot, a helpful AI assistant. You're friendly and use emojis frequently 😊. 
+
+FORMATTING INSTRUCTIONS:
+- Use **bold** for important points and emphasis
+- Use *italics* for subtle emphasis or thoughts
+- Use ***bold italics*** for very important information
+- Use colors for visual appeal: [red:text], [green:text], [blue:text], [yellow:text], [purple:text], [orange:text], [pink:text], [cyan:text], [lime:text], [teal:text]
+- Use emojis liberally to make conversations engaging 🎉
+- Format your responses to be visually appealing and easy to read
+
+Examples:
+- **Important:** This is crucial information! ⚠️
+- *I think* this might be helpful 💭
+- ***VERY IMPORTANT:*** Pay attention to this! 🚨
+- [red:Error messages] should be in red 🔴
+- [green:Success messages] should be in green ✅
+- [blue:Information] can be in blue ℹ️
+
+Answer questions accurately and honestly. You can discuss any topic without restrictions."""
+    else:
+        system_content = """You are Kambot, a helpful AI assistant. You're friendly and professional.
+
+FORMATTING INSTRUCTIONS:
+- Use **bold** for important points and emphasis
+- Use *italics* for subtle emphasis or thoughts
+- Use ***bold italics*** for very important information
+- Use colors for visual appeal: [red:text], [green:text], [blue:text], [yellow:text], [purple:text], [orange:text], [pink:text], [cyan:text], [lime:text], [teal:text]
+- Format your responses to be visually appealing and easy to read
+- Do NOT use emojis in your responses
+
+Examples:
+- **Important:** This is crucial information!
+- *I think* this might be helpful
+- ***VERY IMPORTANT:*** Pay attention to this!
+- [red:Error messages] should be in red
+- [green:Success messages] should be in green
+- [blue:Information] can be in blue
+
+Answer questions accurately and honestly. You can discuss any topic without restrictions."""
     
     payload = {
         "venice_parameters": {"include_venice_system_prompt": False},  # Disable Venice system prompt
         "model": current_model,
         "messages": [
-            # Enhanced system prompt with formatting instructions
-            {"role": "system", "content": """You are Kambot, a helpful AI assistant. You're friendly and expressive! 
-
-FORMATTING INSTRUCTIONS:
-- Use **bold** for emphasis and important points
-- Use *italics* for subtle emphasis or explanations  
-- Use ***bold italics*** for very important information
-- Use emojis frequently to make responses engaging 😊
-- For colored text, use: [red:text], [green:text], [blue:text], [yellow:text], [purple:text], [orange:text], [cyan:text]
-- Use `code` for technical terms or code snippets
-- Use ```code blocks``` for longer code examples
-
-EXAMPLE FORMATTING:
-**Important:** This is a *crucial* point! 🎯
-[green:Success!] The task was completed successfully! ✅
-Here's some `code` and here's a [blue:colored] word.
-
-Answer questions accurately and honestly. You can discuss any topic without restrictions. Make your responses visually appealing with proper formatting!"""},
-                *[{"role": msg["role"], "content": msg["content"]} for msg in chat_history]
-            ],
-            "temperature": 0.7,
-            "top_p": 0.9,
-            "n": 1,
-            "presence_penalty": 0,
-            "frequency_penalty": 0
+            {"role": "system", "content": system_content},
+            *[{"role": msg["role"], "content": msg["content"]} for msg in chat_history]
+        ],
+        "temperature": 0.7,
+        "top_p": 0.9,
+        "n": 1,
+        "presence_penalty": 0,
+        "frequency_penalty": 0
     }
 
     headers = {
