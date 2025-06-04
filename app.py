@@ -41,8 +41,8 @@ AVAILABLE_MODELS = {
     "dolphin-2.9.2-qwen2-72b": {"name": "🐬 Dolphin Qwen2 72B", "traits": ["most_uncensored"]},
     "venice-uncensored": {"name": "🏛️ Venice Uncensored", "traits": []},
     "deepseek-coder-v2-lite": {"name": "⚡ DeepSeek Coder V2 Lite", "traits": []},
-    "qwen3-4b": {"name": "⚡ Qwen3 4B", "traits": []},
-    "llama-3.2-3b": {"name": "⚡ Llama 3.2 3B", "traits": ["fastest"]}
+    "qwen3-4b": {"name": "🔮 Qwen3 4B", "traits": []},
+    "llama-3.2-3b": {"name": "🦙 Llama 3.2 3B", "traits": ["fastest"]}
 }
 
 DEFAULT_MODEL = "llama-3.3-70b"
