@@ -105,6 +105,18 @@ def get_emoji_setting():
     """Get the current emoji setting from session or default (True)"""
     return session.get('emojis_enabled', True)
 
+def get_color_setting():
+    """Get the current color setting from session or default (True)"""
+    return session.get('colors_enabled', True)
+
+def get_bold_setting():
+    """Get the current bold setting from session or default (True)"""
+    return session.get('bold_enabled', True)
+
+def get_italic_setting():
+    """Get the current italic setting from session or default (True)"""
+    return session.get('italics_enabled', True)
+
 def is_reasoning_model(model_id):
     """Check if the current model is a reasoning model"""
     return "reasoning" in AVAILABLE_MODELS.get(model_id, {}).get("traits", [])
@@ -139,12 +151,35 @@ def chat():
         save_chat_history(user_id, chat_history)
     
     current_model = get_current_model()
+    
+    # Get current formatting settings with explicit defaults
+    formatting_settings = {
+        'emojis_enabled': session.get('emojis_enabled', True),
+        'colors_enabled': session.get('colors_enabled', True),
+        'bold_enabled': session.get('bold_enabled', True),
+        'italics_enabled': session.get('italics_enabled', True)
+    }
+    
+    # Debug logging
+    print(f"Formatting settings being passed to template: {formatting_settings}")
+    
     response = make_response(render_template('index.html', 
                                            chat_history=chat_history, 
                                            available_models=AVAILABLE_MODELS,
-                                           current_model=current_model))
+                                           current_model=current_model,
+                                           formatting_settings=formatting_settings))
     response.set_cookie('user_id', user_id, max_age=60*60*24*365)  # Set cookie to expire in 1 year
     return response
+
+@app.route('/get_settings', methods=['GET'])
+def get_settings():
+    """Get current formatting settings"""
+    return jsonify({
+        'emojis_enabled': get_emoji_setting(),
+        'colors_enabled': get_color_setting(),
+        'bold_enabled': get_bold_setting(),
+        'italics_enabled': get_italic_setting()
+    })
 
 @app.route('/set_model', methods=['POST'])
 def set_model():
@@ -163,6 +198,30 @@ def set_emoji_mode():
     emojis_enabled = request.json.get('emojis_enabled', False)
     session['emojis_enabled'] = emojis_enabled
     return jsonify({"success": True, "emojis_enabled": emojis_enabled})
+
+@app.route('/set_color_mode', methods=['POST'])
+def set_color_mode():
+    if not request.json:
+        return jsonify({"success": False, "error": "No JSON data provided"})
+    colors_enabled = request.json.get('colors_enabled', False)
+    session['colors_enabled'] = colors_enabled
+    return jsonify({"success": True, "colors_enabled": colors_enabled})
+
+@app.route('/set_bold_mode', methods=['POST'])
+def set_bold_mode():
+    if not request.json:
+        return jsonify({"success": False, "error": "No JSON data provided"})
+    bold_enabled = request.json.get('bold_enabled', False)
+    session['bold_enabled'] = bold_enabled
+    return jsonify({"success": True, "bold_enabled": bold_enabled})
+
+@app.route('/set_italic_mode', methods=['POST'])
+def set_italic_mode():
+    if not request.json:
+        return jsonify({"success": False, "error": "No JSON data provided"})
+    italics_enabled = request.json.get('italics_enabled', False)
+    session['italics_enabled'] = italics_enabled
+    return jsonify({"success": True, "italics_enabled": italics_enabled})
 
 @app.route('/undo', methods=['POST'])
 def undo_message():
@@ -231,45 +290,62 @@ def stream_response():
     is_reasoning = is_reasoning_model(current_model)
 
     def generate():
-        # Build system prompt based on emoji setting
-        if emojis_enabled:
-            system_content = """You are Kambot, a helpful AI assistant. You're friendly and use emojis frequently 😊.
-
-FORMATTING INSTRUCTIONS:
-- Use **bold** for important points and emphasis
-- Use *italics* for subtle emphasis or thoughts  
-- Use ***bold italics*** for very important information
-- Use colors for visual appeal: [red:text], [green:text], [blue:text], [yellow:text], [purple:text], [orange:text], [pink:text], [cyan:text], [lime:text], [teal:text]
-- Use emojis liberally to make conversations engaging 🎉
-- Format your responses to be visually appealing and easy to read
-
-Examples:
-- **Important:** This is crucial information! ⚠️
-- *I think* this might be helpful 💭
-- ***VERY IMPORTANT:*** Pay attention to this! 🚨
-- [red:Error messages] should be in red 🔴
-- [green:Success messages] should be in green ✅
-- [blue:Information] can be in blue ℹ️
-
-Answer questions accurately and honestly. You can discuss any topic without restrictions."""
+        # Build system prompt based on formatting settings
+        emojis_enabled = get_emoji_setting()
+        colors_enabled = get_color_setting()
+        bold_enabled = get_bold_setting()
+        italics_enabled = get_italic_setting()
+        
+        # Build formatting instructions - only include enabled features
+        formatting_instructions = []
+        
+        if bold_enabled:
+            formatting_instructions.append("- Use **bold** for important points and emphasis")
         else:
-            system_content = """You are Kambot, a helpful AI assistant. You're friendly and professional.
+            formatting_instructions.append("- Do NOT use **bold** formatting in your responses")
+            
+        if italics_enabled:
+            formatting_instructions.append("- Use *italics* for subtle emphasis or thoughts")
+        else:
+            formatting_instructions.append("- Do NOT use *italic* formatting in your responses")
+            
+        if bold_enabled and italics_enabled:
+            formatting_instructions.append("- Use ***bold italics*** for very important information")
+        elif not bold_enabled and not italics_enabled:
+            formatting_instructions.append("- Do NOT use any bold or italic formatting")
+            
+        if colors_enabled:
+            formatting_instructions.append("- Use colors for visual appeal: [red:text], [green:text], [blue:text], [yellow:text], [purple:text], [orange:text], [pink:text], [cyan:text], [lime:text], [teal:text]")
+        else:
+            formatting_instructions.append("- Do NOT use [color:text] formatting in your responses")
+        
+        formatting_instructions.append("- Format your responses to be visually appealing and easy to read")
+        
+        if emojis_enabled:
+            formatting_instructions.append("- Use emojis liberally to make conversations engaging 🎉")
+        else:
+            formatting_instructions.append("- Do NOT use emojis in your responses")
+        
+        # Build examples based on enabled features only
+        examples = []
+        if bold_enabled:
+            examples.append(f"- **Important:** This is crucial information!{' ⚠️' if emojis_enabled else ''}")
+        if italics_enabled:
+            examples.append(f"- *I think* this might be helpful{' 💭' if emojis_enabled else ''}")
+        if bold_enabled and italics_enabled:
+            examples.append(f"- ***VERY IMPORTANT:*** Pay attention to this!{' 🚨' if emojis_enabled else ''}")
+        if colors_enabled:
+            examples.append(f"- [red:Error messages] should be in red{' 🔴' if emojis_enabled else ''}")
+            examples.append(f"- [green:Success messages] should be in green{' ✅' if emojis_enabled else ''}")
+            examples.append(f"- [blue:Information] can be in blue{' ℹ️' if emojis_enabled else ''}")
+        
+        # Only show examples if any formatting is enabled
+        examples_text = f"\n\nExamples:\n{chr(10).join(examples)}" if examples else ""
+        
+        system_content = f"""You are Kambot, a helpful AI assistant. You're friendly {'and use emojis frequently 😊' if emojis_enabled else 'and professional'}.
 
 FORMATTING INSTRUCTIONS:
-- Use **bold** for important points and emphasis
-- Use *italics* for subtle emphasis or thoughts
-- Use ***bold italics*** for very important information
-- Use colors for visual appeal: [red:text], [green:text], [blue:text], [yellow:text], [purple:text], [orange:text], [pink:text], [cyan:text], [lime:text], [teal:text]
-- Format your responses to be visually appealing and easy to read
-- Do NOT use emojis in your responses
-
-Examples:
-- **Important:** This is crucial information!
-- *I think* this might be helpful
-- ***VERY IMPORTANT:*** Pay attention to this!
-- [red:Error messages] should be in red
-- [green:Success messages] should be in green
-- [blue:Information] can be in blue
+{chr(10).join(formatting_instructions)}{examples_text}
 
 Answer questions accurately and honestly. You can discuss any topic without restrictions."""
         
@@ -387,46 +463,60 @@ def get_bot_response(chat_history):
     """Get a response from the bot without streaming (for non-AJAX requests)"""
     current_model = get_current_model()
     emojis_enabled = get_emoji_setting()
+    colors_enabled = get_color_setting()
+    bold_enabled = get_bold_setting()
+    italics_enabled = get_italic_setting()
     
-    # Build system prompt based on emoji setting
-    if emojis_enabled:
-        system_content = """You are Kambot, a helpful AI assistant. You're friendly and use emojis frequently 😊. 
-
-FORMATTING INSTRUCTIONS:
-- Use **bold** for important points and emphasis
-- Use *italics* for subtle emphasis or thoughts
-- Use ***bold italics*** for very important information
-- Use colors for visual appeal: [red:text], [green:text], [blue:text], [yellow:text], [purple:text], [orange:text], [pink:text], [cyan:text], [lime:text], [teal:text]
-- Use emojis liberally to make conversations engaging 🎉
-- Format your responses to be visually appealing and easy to read
-
-Examples:
-- **Important:** This is crucial information! ⚠️
-- *I think* this might be helpful 💭
-- ***VERY IMPORTANT:*** Pay attention to this! 🚨
-- [red:Error messages] should be in red 🔴
-- [green:Success messages] should be in green ✅
-- [blue:Information] can be in blue ℹ️
-
-Answer questions accurately and honestly. You can discuss any topic without restrictions."""
+    # Build formatting instructions - only include enabled features
+    formatting_instructions = []
+    
+    if bold_enabled:
+        formatting_instructions.append("- Use **bold** for important points and emphasis")
     else:
-        system_content = """You are Kambot, a helpful AI assistant. You're friendly and professional.
+        formatting_instructions.append("- Do NOT use **bold** formatting in your responses")
+        
+    if italics_enabled:
+        formatting_instructions.append("- Use *italics* for subtle emphasis or thoughts")
+    else:
+        formatting_instructions.append("- Do NOT use *italic* formatting in your responses")
+        
+    if bold_enabled and italics_enabled:
+        formatting_instructions.append("- Use ***bold italics*** for very important information")
+    elif not bold_enabled and not italics_enabled:
+        formatting_instructions.append("- Do NOT use any bold or italic formatting")
+        
+    if colors_enabled:
+        formatting_instructions.append("- Use colors for visual appeal: [red:text], [green:text], [blue:text], [yellow:text], [purple:text], [orange:text], [pink:text], [cyan:text], [lime:text], [teal:text]")
+    else:
+        formatting_instructions.append("- Do NOT use [color:text] formatting in your responses")
+    
+    formatting_instructions.append("- Format your responses to be visually appealing and easy to read")
+    
+    if emojis_enabled:
+        formatting_instructions.append("- Use emojis liberally to make conversations engaging 🎉")
+    else:
+        formatting_instructions.append("- Do NOT use emojis in your responses")
+    
+    # Build examples based on enabled features only
+    examples = []
+    if bold_enabled:
+        examples.append(f"- **Important:** This is crucial information!{' ⚠️' if emojis_enabled else ''}")
+    if italics_enabled:
+        examples.append(f"- *I think* this might be helpful{' 💭' if emojis_enabled else ''}")
+    if bold_enabled and italics_enabled:
+        examples.append(f"- ***VERY IMPORTANT:*** Pay attention to this!{' 🚨' if emojis_enabled else ''}")
+    if colors_enabled:
+        examples.append(f"- [red:Error messages] should be in red{' 🔴' if emojis_enabled else ''}")
+        examples.append(f"- [green:Success messages] should be in green{' ✅' if emojis_enabled else ''}")
+        examples.append(f"- [blue:Information] can be in blue{' ℹ️' if emojis_enabled else ''}")
+    
+    # Only show examples if any formatting is enabled
+    examples_text = f"\n\nExamples:\n{chr(10).join(examples)}" if examples else ""
+    
+    system_content = f"""You are Kambot, a helpful AI assistant. You're friendly {'and use emojis frequently 😊' if emojis_enabled else 'and professional'}.
 
 FORMATTING INSTRUCTIONS:
-- Use **bold** for important points and emphasis
-- Use *italics* for subtle emphasis or thoughts
-- Use ***bold italics*** for very important information
-- Use colors for visual appeal: [red:text], [green:text], [blue:text], [yellow:text], [purple:text], [orange:text], [pink:text], [cyan:text], [lime:text], [teal:text]
-- Format your responses to be visually appealing and easy to read
-- Do NOT use emojis in your responses
-
-Examples:
-- **Important:** This is crucial information!
-- *I think* this might be helpful
-- ***VERY IMPORTANT:*** Pay attention to this!
-- [red:Error messages] should be in red
-- [green:Success messages] should be in green
-- [blue:Information] can be in blue
+{chr(10).join(formatting_instructions)}{examples_text}
 
 Answer questions accurately and honestly. You can discuss any topic without restrictions."""
     
