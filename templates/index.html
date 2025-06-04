@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kambot</title>
+    <title>😼 Kambot</title>
     <style>
         * {
             margin: 0;
@@ -213,6 +213,26 @@
         .donation-section a:hover {
             color: #0d8f6a;
             text-decoration: underline;
+        }
+        
+        /* Footer Section */
+        .sidebar-footer {
+            border-top: 1px solid #404142;
+            padding-top: 16px;
+            margin-top: 16px;
+            text-align: center;
+        }
+        
+        .sidebar-footer .creator {
+            font-size: 14px;
+            font-weight: 600;
+            color: #ffffff;
+            margin-bottom: 4px;
+        }
+        
+        .sidebar-footer .powered-by {
+            font-size: 12px;
+            color: #8e8ea0;
         }
         
         /* Custom Modal Styles */
@@ -650,6 +670,11 @@
             <p><a href="https://donate.stripe.com/3cs8zU2CPecAfw4eUU" target="_blank">Donate</a></p>
             <p>Thank you,<br>-Kameon</p>
         </div>
+        
+        <div class="sidebar-footer">
+            <div class="creator">Kameon</div>
+            <div class="powered-by">Powered by Venice</div>
+        </div>
     </div>
     
     <!-- Main Chat Area -->
@@ -665,7 +690,7 @@
                     {% endfor %}
                 {% else %}
                     <div class="welcome-message">
-                        <h2>Welcome to Kambot! 😼S</h2>
+                        <h2>Welcome to Kambot! 😼</h2>
                         <p>Hey there! I'm Kambot, your AI assistant 😸. What can I help you with today?</p>
                     </div>
                 {% endif %}
