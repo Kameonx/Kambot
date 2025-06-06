@@ -435,8 +435,7 @@
             font-style: italic;
             color: #e0e0e0;
         }
-        
-        .message-content .color-red { color: #ff6b6b; }
+          .message-content .color-red { color: #ff6b6b; }
         .message-content .color-green { color: #51cf66; }
         .message-content .color-blue { color: #74c0fc; }
         .message-content .color-yellow { color: #ffd43b; }
@@ -445,7 +444,83 @@
         .message-content .color-pink { color: #ffa8cc; }
         .message-content .color-cyan { color: #74e6e6; }
         .message-content .color-lime { color: #c9ff74; }
-        .message-content .color-teal { color: #66d9ef; }
+        .message-content .color-teal { color: #66d9ef; }        /* Code Console Styles */
+        .code-console {
+            background: #1e1e1e;
+            border: 1px solid #404040;
+            border-radius: 8px;
+            margin: 10px 0;
+            overflow: hidden;
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+            position: relative;
+        }
+
+        .code-console-language {
+            font-weight: 600;
+            color: #a0a0a0;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .code-console-copy {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background: rgba(70, 80, 96, 0.9);
+            border: 1px solid #4a5568;
+            padding: 4px 8px;
+            border-radius: 4px;
+            color: #ffffff;
+            cursor: pointer;
+            font-size: 10px;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 3px;
+            z-index: 10;
+            backdrop-filter: blur(4px);
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+        }        .code-console-copy:hover {
+            background: rgba(90, 101, 120, 0.95);
+            border-color: #5a6578;
+            transform: translateY(-1px);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+        }
+
+        .code-console-copy:active {
+            transform: translateY(0);
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+        }
+
+        .code-console-copy.copied {
+            background: rgba(34, 197, 94, 0.9);
+            border-color: #22c55e;
+            color: #ffffff;
+        }
+
+        .code-console-content {
+            padding: 14px;
+            background: #1e1e1e;
+            color: #e0e0e0;
+            white-space: pre-wrap;
+            overflow-x: auto;
+            max-height: 400px;
+            overflow-y: auto;
+            line-height: 1.5;
+            font-size: 13px;
+            min-height: 50px;
+            border: none;
+        }
+
+        /* Syntax highlighting colors */
+        .code-console-content .keyword { color: #569cd6; }
+        .code-console-content .string { color: #ce9178; }
+        .code-console-content .comment { color: #6a9955; }
+        .code-console-content .number { color: #b5cea8; }
+        .code-console-content .function { color: #dcdcaa; }
         
         .input-area {
             background: #2a2a2a;
@@ -1014,8 +1089,44 @@
             </div>
         </div>
     </div>
-    
-    <script>
+      <script>
+        // Global function for copying code to clipboard
+        function copyCodeToClipboard(consoleId) {
+            const codeElement = document.getElementById(consoleId);
+            if (codeElement) {
+                const code = codeElement.textContent;
+                navigator.clipboard.writeText(code).then(() => {
+                    const button = codeElement.parentElement.querySelector('.code-console-copy');
+                    const originalText = button.textContent;
+                    button.textContent = '✅ Copied!';
+                    button.classList.add('copied');
+                    
+                    setTimeout(() => {
+                        button.textContent = originalText;
+                        button.classList.remove('copied');
+                    }, 2000);
+                }).catch(() => {
+                    // Fallback for older browsers
+                    const textArea = document.createElement('textarea');
+                    textArea.value = code;
+                    document.body.appendChild(textArea);
+                    textArea.select();
+                    document.execCommand('copy');
+                    document.body.removeChild(textArea);
+                    
+                    const button = codeElement.parentElement.querySelector('.code-console-copy');
+                    const originalText = button.textContent;
+                    button.textContent = '✅ Copied!';
+                    button.classList.add('copied');
+                    
+                    setTimeout(() => {
+                        button.textContent = originalText;
+                        button.classList.remove('copied');
+                    }, 2000);
+                });
+            }
+        }
+        
         document.addEventListener('DOMContentLoaded', function() {
             const chatHistory = document.querySelector('.chat-history');
             const chatForm = document.getElementById('chat-form');
@@ -1144,38 +1255,9 @@
                     },
                     body: JSON.stringify({ model_id: selectedModel })
                 })
-                .then(response => response.json())
-                .then(data => {
+                .then(response => response.json())                .then(data => {
                     if (data.success) {
                         modelInfo.textContent = `Using ${this.options[this.selectedIndex].text}`;
-                        
-                        // Show a brief notification that formatting settings will apply to next messages
-                        const tempNotification = document.createElement('div');
-                        tempNotification.style.cssText = `
-                            position: fixed;
-                            top: 80px;
-                            right: 20px;
-                            background: #10a37f;
-                            color: white;
-                            padding: 12px 16px;
-                            border-radius: 8px;
-                            font-size: 14px;
-                            z-index: 1001;
-                            opacity: 0;
-                            transition: opacity 0.3s ease;
-                        `;
-                        tempNotification.textContent = 'Model updated! Formatting settings will apply to new messages.';
-                        document.body.appendChild(tempNotification);
-                        
-                        // Animate in
-                        setTimeout(() => tempNotification.style.opacity = '1', 10);
-                        
-                        // Remove after 3 seconds
-                        setTimeout(() => {
-                            tempNotification.style.opacity = '0';
-                            setTimeout(() => tempNotification.remove(), 300);
-                        }, 3000);
-                        
                     } else {
                         modelInfo.textContent = originalInfo;
                         console.error('Failed to update model:', data.error);
@@ -1395,9 +1477,14 @@
                             let thinkingSection = null;
                             let thinkingContent = null;
                             
-                            function processStream() {
-                                return reader.read().then(({ done, value }) => {
+                            function processStream() {                                return reader.read().then(({ done, value }) => {
                                     if (done) {
+                                        // Clean up any active code consoles
+                                        const activeConsoles = contentDiv.querySelectorAll('.code-console[data-active="true"]');
+                                        activeConsoles.forEach(console => {
+                                            console.dataset.active = 'false';
+                                        });
+                                        
                                         // Hide thinking indicator and just remove the typing cursor
                                         thinkingIndicatorDiv.style.display = 'none';
                                         thinkingIndicatorDiv.classList.remove('show');
@@ -1428,8 +1515,7 @@
                                                 
                                                 const wasAtBottom = !userHasScrolled || 
                                                     (chatHistory.scrollHeight - chatHistory.clientHeight <= chatHistory.scrollTop + 20);
-                                                
-                                                // Handle reasoning models
+                                                  // Handle reasoning models
                                                 if (eventData.is_reasoning) {
                                                     // Show/hide thinking indicator based on thinking state
                                                     if (eventData.is_thinking) {
@@ -1453,14 +1539,18 @@
                                                         thinkingContent.textContent = eventData.thinking;
                                                     }
                                                 
-                                                    // Update main content - formatting is already applied by server
-                                                    contentDiv.innerHTML = formatMessage(eventData.full) + '<span class="typing">|</span>';
+                                                    // Check for streaming code blocks in main content
+                                                    if (!handleStreamingCodeBlocks(eventData.full, contentDiv)) {
+                                                        contentDiv.innerHTML = formatMessage(eventData.full) + '<span class="typing">|</span>';
+                                                    }
                                                 } else {
                                                     // Regular model - hide thinking indicator immediately
                                                     thinkingIndicatorDiv.style.display = 'none';
                                                     thinkingIndicatorDiv.classList.remove('show');
-                                                    // Update content - formatting is already applied by server
-                                                    contentDiv.innerHTML = formatMessage(eventData.full) + '<span class="typing">|</span>';
+                                                    // Check for streaming code blocks in regular content
+                                                    if (!handleStreamingCodeBlocks(eventData.full, contentDiv)) {
+                                                        contentDiv.innerHTML = formatMessage(eventData.full) + '<span class="typing">|</span>';
+                                                    }
                                                 }
                                                 
                                                 if (wasAtBottom) {
@@ -1586,9 +1676,7 @@
 
                 // No click handler setup here!
                 return thinkingSection;
-            }
-
-            function addMessageToChat(role, content) {
+            }            function addMessageToChat(role, content) {
                 const messageDiv = document.createElement('div');
                 messageDiv.className = `message ${role === 'user' ? 'user-message' : 'bot-message'}`;
                 
@@ -1639,14 +1727,90 @@
                     userHasScrolled = false;
                     shouldAutoScroll = true;
                 }
+            }              // Function to create code console HTML
+            function createCodeConsoleHtml(language, code, isActive = false) {
+                const consoleId = 'code-console-' + Date.now() + Math.random().toString(36).substr(2, 9);
+                return `
+                    <div class="code-console" data-active="${isActive}">
+                        <button class="code-console-copy" onclick="copyCodeToClipboard('${consoleId}')">
+                            📋 Copy
+                        </button>
+                        <div class="code-console-content" id="${consoleId}">${code}</div>
+                    </div>
+                `;
+            }// Function to detect streaming code blocks (partial)
+            function handleStreamingCodeBlocks(content, contentDiv) {
+                // Count the number of ``` in the content
+                const backtickMatches = content.match(/```/g);
+                const backtickCount = backtickMatches ? backtickMatches.length : 0;
+                
+                // If we have an odd number of ```, we're inside a code block
+                if (backtickCount > 0 && backtickCount % 2 === 1) {
+                    // We're inside a code block - find the last opening ```
+                    const lastBacktickIndex = content.lastIndexOf('```');
+                    const beforeCodeBlock = content.substring(0, lastBacktickIndex);
+                    const currentCodeBlock = content.substring(lastBacktickIndex + 3);
+                    
+                    // Extract language from the start of the code block
+                    const lines = currentCodeBlock.split('\n');
+                    const language = lines[0].trim() || 'text';
+                    const code = lines.slice(1).join('\n');
+                    
+                    // Check if we already have an active console
+                    let existingConsole = contentDiv.querySelector('.code-console[data-active="true"]');
+                    
+                    if (!existingConsole) {
+                        // Create new console immediately when ``` is detected
+                        const consoleHtml = createCodeConsoleHtml(language, '', true);
+                        const formattedBefore = formatMessage(beforeCodeBlock);
+                        contentDiv.innerHTML = formattedBefore + consoleHtml + '<span class="typing">|</span>';
+                        existingConsole = contentDiv.querySelector('.code-console[data-active="true"]');
+                    }
+                    
+                    // Update the code content in real-time
+                    const codeContent = existingConsole.querySelector('.code-console-content');
+                    if (codeContent) {
+                        codeContent.textContent = code;
+                        // Scroll to bottom of code content to show latest
+                        codeContent.scrollTop = codeContent.scrollHeight;
+                    }
+                    
+                    return true;
+                } else if (backtickCount > 0 && backtickCount % 2 === 0) {
+                    // Even number of ``` means all code blocks are closed
+                    const activeConsoles = contentDiv.querySelectorAll('.code-console[data-active="true"]');
+                    activeConsoles.forEach(console => {
+                        console.dataset.active = 'false';
+                    });
+                    
+                    // Remove typing cursor when code block is complete
+                    const typingCursor = contentDiv.querySelector('.typing');
+                    if (typingCursor) {
+                        typingCursor.remove();
+                    }
+                    
+                    // Format the complete content normally
+                    contentDiv.innerHTML = formatMessage(content);
+                    return true;
+                }
+                
+                return false;
             }
-            
-            // Function to format markdown-style text
+              // Function to format markdown-style text
             function formatMessage(text) {
                 // Escape HTML first
                 let formatted = text.replace(/&/g, '&amp;')
                                   .replace(/</g, '&lt;')
                                   .replace(/>/g, '&gt;');
+                
+                // Handle code blocks first (before other formatting)
+                formatted = formatted.replace(/```(\w+)?\n?([\s\S]*?)```/g, (match, language, code) => {
+                    const lang = language || 'text';
+                    return createCodeConsoleHtml(lang, code);
+                });
+                
+                // Handle inline code
+                formatted = formatted.replace(/`([^`]+)`/g, '<code style="background: #2d2d2d; padding: 2px 4px; border-radius: 3px; font-family: monospace;">$1</code>');
                 
                 // Handle ***bold italic*** (must come before ** and *)
                 formatted = formatted.replace(/\*\*\*(.*?)\*\*\*/g, '<strong><em>$1</em></strong>');
